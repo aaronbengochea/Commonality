@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     jwt_expiration_minutes: int = 1440
+    password_min_length: int = 8
 
     # Server
     backend_port: int = 8080
