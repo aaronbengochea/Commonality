@@ -12,13 +12,13 @@
 8. ✅ Create Redis client wrapper (`db/redis.py`)
 9. ✅ Verify `docker compose up` starts all services and they can communicate
 
-## Phase 2: Auth
+## Phase 2: Auth ✅
 
-10. Implement signup endpoint (argon2 password hashing, DynamoDB write)
-11. Implement login endpoint (JWT generation)
-12. Implement auth middleware (JWT validation)
-13. Implement `/me` endpoint
-14. Frontend: signup + login pages with form validation
+10. ✅ Implement signup endpoint (argon2 password hashing, DynamoDB write)
+11. ✅ Implement login endpoint (JWT generation)
+12. ✅ Implement auth middleware (JWT validation)
+13. ✅ Implement `/me` endpoint
+14. ✅ Frontend: signup + login pages with form validation
 
 ## Phase 3: Chat (text)
 
