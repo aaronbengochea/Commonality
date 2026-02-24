@@ -1,8 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CreateChatRequest(BaseModel):
-    username: str
+    username: str = Field(min_length=1)
 
 
 class ChatResponse(BaseModel):
@@ -19,3 +19,8 @@ class MessageResponse(BaseModel):
     from_user_id: str
     language: str
     timestamp: str
+
+
+class MessagesPageResponse(BaseModel):
+    messages: list[MessageResponse]
+    next_cursor: str | None = None
