@@ -1,0 +1,31 @@
+[project]
+name = "commonality-backend"
+version = "0.1.0"
+description = "Commonality real-time translation chat and voice backend"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "boto3>=1.35.0",
+    "redis[hiredis]>=5.2.0",
+    "pyjwt>=2.9.0",
+    "argon2-cffi>=23.1.0",
+    "openai>=1.55.0",
+    "livekit-api>=0.7.0",
+    "websockets>=13.1",
+    "pydantic-settings>=2.6.0",
+    "httpx>=0.28.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
