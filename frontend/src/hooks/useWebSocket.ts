@@ -1,19 +1,38 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
+import { createWebSocket } from "@/lib/ws";
 
-export function useWebSocket(url: string, onMessage: (data: string) => void) {
+export function useWebSocket(onMessage: (data: string) => void) {
   const wsRef = useRef<WebSocket | null>(null);
+  const onMessageRef = useRef(onMessage);
+  onMessageRef.current = onMessage;
 
   useEffect(() => {
-    // TODO: Implement WebSocket connection in Phase 3
-    return () => {
-      wsRef.current?.close();
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const ws = createWebSocket("/api/ws/chat", token);
+    wsRef.current = ws;
+
+    ws.onmessage = (event) => {
+      onMessageRef.current(event.data);
     };
-  }, [url]);
+
+    ws.onclose = () => {
+      wsRef.current = null;
+    };
+
+    return () => {
+      ws.close();
+      wsRef.current = null;
+    };
+  }, []);
 
   const send = useCallback((data: string) => {
-    wsRef.current?.send(data);
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(data);
+    }
   }, []);
 
   return { send };
