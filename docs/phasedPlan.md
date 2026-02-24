@@ -20,14 +20,14 @@
 13. ✅ Implement `/me` endpoint
 14. ✅ Frontend: signup + login pages with form validation
 
-## Phase 3: Chat (text)
+## Phase 3: Chat (text) ✅
 
-15. Implement create chat endpoint (validate target user, create chat + user_chats entries)
-16. Implement list chats endpoint (inbox)
-17. Implement WebSocket handler for real-time messaging
-18. Implement translation service (OpenAI) + dual-write to messages table
-19. Implement message history endpoint (paginated)
-20. Frontend: chat list page, chat conversation page with WebSocket
+15. ✅ Implement create chat endpoint (validate target user, create chat + user_chats entries)
+16. ✅ Implement list chats endpoint (inbox)
+17. ✅ Implement WebSocket handler for real-time messaging
+18. ✅ Implement translation service (OpenAI) + dual-write to messages table
+19. ✅ Implement message history endpoint (paginated)
+20. ✅ Frontend: chat list page, chat conversation page with WebSocket
 
 ## Phase 4: Voice
 
