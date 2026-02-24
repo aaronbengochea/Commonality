@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     # OpenAI
     openai_api_key: str = ""
+    openai_translation_model: str = "gpt-4o-mini"
 
     # LiveKit
     livekit_api_key: str = "devkey"
