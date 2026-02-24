@@ -14,6 +14,8 @@ router = APIRouter()
 
 # In-memory map of user_id -> set of active WebSocket connections
 _connections: dict[str, set[WebSocket]] = {}
+# Single Redis listener task per user (shared across all their connections)
+_listener_tasks: dict[str, asyncio.Task] = {}
 
 
 def _register(user_id: str, ws: WebSocket):
@@ -52,7 +54,7 @@ async def _redis_listener(user_id: str):
         await pubsub.close()
 
 
-async def _authenticate(websocket: WebSocket) -> dict | None:
+def _authenticate(websocket: WebSocket) -> dict | None:
     """Validate JWT from query param and return user dict, or None."""
     token = websocket.query_params.get("token")
     if not token:
@@ -72,17 +74,20 @@ async def _authenticate(websocket: WebSocket) -> dict | None:
 
 @router.websocket("/chat")
 async def chat_websocket(websocket: WebSocket):
-    user = await _authenticate(websocket)
+    # Accept first, then authenticate (WebSocket lifecycle requires accept before close)
+    await websocket.accept()
+
+    user = _authenticate(websocket)
     if not user:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    await websocket.accept()
     user_id = user["userId"]
     _register(user_id, websocket)
 
-    # Start Redis listener for this user
-    listener_task = asyncio.create_task(_redis_listener(user_id))
+    # Start a single Redis listener per user (shared across tabs)
+    if user_id not in _listener_tasks or _listener_tasks[user_id].done():
+        _listener_tasks[user_id] = asyncio.create_task(_redis_listener(user_id))
 
     try:
         while True:
@@ -118,8 +123,13 @@ async def chat_websocket(websocket: WebSocket):
             if not other_user:
                 continue
 
-            # Dual-write message (original + translated)
-            sender_msg, recipient_msg = send_message(chat_id, user, other_user, text)
+            # Dual-write message (translate + store) with error handling
+            try:
+                sender_msg, recipient_msg = send_message(chat_id, user, other_user, text)
+            except Exception:
+                logger.exception("Failed to send message in chat %s", chat_id)
+                await websocket.send_text(json.dumps({"error": "Failed to send message"}))
+                continue
 
             # Build payloads from the already-written records
             sender_payload = json.dumps({
@@ -156,8 +166,6 @@ async def chat_websocket(websocket: WebSocket):
         pass
     finally:
         _unregister(user_id, websocket)
-        listener_task.cancel()
-        try:
-            await listener_task
-        except asyncio.CancelledError:
-            pass
+        # Only cancel the Redis listener when the last connection for this user disconnects
+        if user_id not in _connections and user_id in _listener_tasks:
+            _listener_tasks.pop(user_id).cancel()

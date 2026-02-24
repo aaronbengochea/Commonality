@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.auth.dependencies import get_current_user
 from app.auth.service import get_user_by_username
@@ -64,7 +64,7 @@ async def list_chats_endpoint(current_user: dict = Depends(get_current_user)):
 async def get_messages_endpoint(
     chat_id: str,
     cursor: str | None = None,
-    limit: int = 50,
+    limit: int = Query(default=50, ge=1, le=200),
     current_user: dict = Depends(get_current_user),
 ):
     # Verify user is a member of this chat

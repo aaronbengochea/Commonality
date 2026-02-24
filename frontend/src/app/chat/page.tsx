@@ -18,17 +18,22 @@ export default function ChatListPage() {
 
   useEffect(() => {
     if (!user) return;
-    api.get("/api/chats").then((data) => {
-      setChats(
-        data.map((c: Record<string, string>) => ({
-          chatId: c.chat_id,
-          otherUsername: c.other_username,
-          otherUserId: c.other_user_id,
-          lastMessagePreview: c.last_message_preview,
-          updatedAt: c.updated_at,
-        }))
-      );
-    });
+    api
+      .get("/api/chats")
+      .then((data) => {
+        setChats(
+          data.map((c: Record<string, string>) => ({
+            chatId: c.chat_id,
+            otherUsername: c.other_username,
+            otherUserId: c.other_user_id,
+            lastMessagePreview: c.last_message_preview,
+            updatedAt: c.updated_at,
+          }))
+        );
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Failed to load chats");
+      });
   }, [user]);
 
   async function handleNewChat(e: React.FormEvent) {

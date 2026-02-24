@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime, timezone
 
@@ -6,6 +7,8 @@ from openai import OpenAI
 
 from app.config import settings
 from app.dependencies import get_dynamo_client
+
+logger = logging.getLogger(__name__)
 
 _openai_client: OpenAI | None = None
 
@@ -17,14 +20,27 @@ def _get_openai_client() -> OpenAI:
     return _openai_client
 
 
+def _query_all_pages(table, **kwargs) -> list[dict]:
+    """Query DynamoDB and paginate through all result pages."""
+    items = []
+    while True:
+        resp = table.query(**kwargs)
+        items.extend(resp.get("Items", []))
+        if "LastEvaluatedKey" not in resp:
+            break
+        kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+    return items
+
+
 def find_existing_chat(user_id: str, other_user_id: str) -> dict | None:
     """Check if a chat already exists between two users via user_chats table."""
     dynamo = get_dynamo_client()
     table = dynamo.Table("user_chats")
-    resp = table.query(
+    items = _query_all_pages(
+        table,
         KeyConditionExpression=Key("PK").eq(f"USER#{user_id}"),
     )
-    for item in resp.get("Items", []):
+    for item in items:
         if item.get("otherUserId") == other_user_id:
             return item
     return None
@@ -75,10 +91,10 @@ def list_user_chats(user_id: str) -> list[dict]:
     """Return all chats for a user, sorted by most recently updated."""
     dynamo = get_dynamo_client()
     table = dynamo.Table("user_chats")
-    resp = table.query(
+    items = _query_all_pages(
+        table,
         KeyConditionExpression=Key("PK").eq(f"USER#{user_id}"),
     )
-    items = resp.get("Items", [])
     items.sort(key=lambda x: x.get("updatedAt", ""), reverse=True)
     return items
 
@@ -93,7 +109,8 @@ def get_chat_meta(chat_id: str) -> dict | None:
 
 def send_message(chat_id: str, sender: dict, recipient: dict, text: str) -> tuple[dict, dict]:
     """Dual-write a message: original for sender, translated for recipient.
-    Returns (sender_item, recipient_item)."""
+    Returns (sender_item, recipient_item).
+    Translates first before any writes to avoid partial state on failure."""
     msg_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
     sender_id = sender["userId"]
@@ -101,10 +118,15 @@ def send_message(chat_id: str, sender: dict, recipient: dict, text: str) -> tupl
     sender_lang = sender["nativeLanguage"]
     recipient_lang = recipient["nativeLanguage"]
 
+    # Translate BEFORE writing anything to avoid partial writes on failure
+    if sender_lang == recipient_lang:
+        translated_text = text
+    else:
+        translated_text = translate_text(text, sender_lang, recipient_lang)
+
     dynamo = get_dynamo_client()
     messages_table = dynamo.Table("messages")
 
-    # Store original message for sender
     sender_item = {
         "PK": f"USER#{sender_id}#CHAT#{chat_id}",
         "SK": f"MSG#{now}#{msg_id}",
@@ -114,13 +136,6 @@ def send_message(chat_id: str, sender: dict, recipient: dict, text: str) -> tupl
         "language": sender_lang,
         "timestamp": now,
     }
-    messages_table.put_item(Item=sender_item)
-
-    # Translate and store for recipient
-    if sender_lang == recipient_lang:
-        translated_text = text
-    else:
-        translated_text = translate_text(text, sender_lang, recipient_lang)
 
     recipient_item = {
         "PK": f"USER#{recipient_id}#CHAT#{chat_id}",
@@ -131,6 +146,9 @@ def send_message(chat_id: str, sender: dict, recipient: dict, text: str) -> tupl
         "language": recipient_lang,
         "timestamp": now,
     }
+
+    # Write both messages
+    messages_table.put_item(Item=sender_item)
     messages_table.put_item(Item=recipient_item)
 
     # Update last message preview in user_chats for both users

@@ -15,8 +15,8 @@ export default function ChatConversationPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
-  const initialLoadDone = useRef(false);
 
   // Handle incoming WebSocket messages
   const handleWsMessage = useCallback(
@@ -42,25 +42,33 @@ export default function ChatConversationPage() {
 
   const { send } = useWebSocket(handleWsMessage);
 
-  // Load initial message history
+  // Load message history — re-runs when chatId changes
   useEffect(() => {
-    if (!user || !chatId || initialLoadDone.current) return;
-    initialLoadDone.current = true;
+    if (!user || !chatId) return;
 
-    api.get(`/api/chats/${chatId}/messages?limit=50`).then((data) => {
-      const msgs: Message[] = data.messages.map(
-        (m: Record<string, string>) => ({
-          messageId: m.message_id,
-          text: m.text,
-          fromUserId: m.from_user_id,
-          language: m.language,
-          timestamp: m.timestamp,
-        })
-      );
-      // API returns newest-first, reverse for display
-      setMessages(msgs.reverse());
-      setNextCursor(data.next_cursor);
-    });
+    setMessages([]);
+    setNextCursor(null);
+    setError("");
+
+    api
+      .get(`/api/chats/${chatId}/messages?limit=50`)
+      .then((data) => {
+        const msgs: Message[] = data.messages.map(
+          (m: Record<string, string>) => ({
+            messageId: m.message_id,
+            text: m.text,
+            fromUserId: m.from_user_id,
+            language: m.language,
+            timestamp: m.timestamp,
+          })
+        );
+        // API returns newest-first, reverse for display
+        setMessages(msgs.reverse());
+        setNextCursor(data.next_cursor);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Failed to load messages");
+      });
   }, [user, chatId]);
 
   // Auto-scroll to bottom on new messages
@@ -86,6 +94,8 @@ export default function ChatConversationPage() {
       );
       setMessages((prev) => [...older.reverse(), ...prev]);
       setNextCursor(data.next_cursor);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load messages");
     } finally {
       setLoadingMore(false);
     }
@@ -108,6 +118,9 @@ export default function ChatConversationPage() {
         <div className="w-16" />
       </header>
       <div className="flex-1 overflow-y-auto p-4">
+        {error && (
+          <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
+        )}
         {nextCursor && (
           <button
             onClick={loadMore}
