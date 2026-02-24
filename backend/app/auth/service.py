@@ -3,7 +3,8 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 from argon2 import PasswordHasher
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Attr, Key
+from botocore.exceptions import ClientError
 
 from app.config import settings
 from app.dependencies import get_dynamo_client
@@ -52,8 +53,13 @@ def get_user_by_id(user_id: str) -> dict | None:
     return resp.get("Item")
 
 
+class UsernameExistsError(Exception):
+    """Raised when attempting to create a user with a taken username."""
+
+
 def create_user(username: str, password: str, first_name: str, last_name: str, native_language: str) -> dict:
-    """Create a new user in DynamoDB. Returns the user item."""
+    """Create a new user in DynamoDB. Returns the user item (without passwordHash).
+    Raises UsernameExistsError if the username is already taken."""
     user_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
     password_hash = hash_password(password)
@@ -74,6 +80,12 @@ def create_user(username: str, password: str, first_name: str, last_name: str, n
 
     dynamo = get_dynamo_client()
     table = dynamo.Table("users")
-    table.put_item(Item=item)
+    try:
+        table.put_item(Item=item, ConditionExpression=Attr("PK").not_exists())
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            raise UsernameExistsError()
+        raise
 
-    return item
+    safe_item = {k: v for k, v in item.items() if k != "passwordHash"}
+    return safe_item

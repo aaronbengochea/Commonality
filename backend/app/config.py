@@ -1,4 +1,9 @@
+import logging
+import os
+
 from pydantic_settings import BaseSettings
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -35,3 +40,6 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+if settings.jwt_secret == "change-me-in-production" and os.getenv("ENVIRONMENT", "development") != "development":
+    raise RuntimeError("JWT_SECRET must be set to a secure value in non-development environments")

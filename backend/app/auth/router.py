@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.auth.dependencies import get_current_user
 from app.auth.models import LoginRequest, SignupRequest, TokenResponse, UserResponse
 from app.auth.service import (
+    UsernameExistsError,
     create_access_token,
     create_user,
     get_user_by_username,
@@ -18,13 +19,17 @@ async def signup(body: SignupRequest):
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already taken")
 
-    user = create_user(
-        username=body.username,
-        password=body.password,
-        first_name=body.first_name,
-        last_name=body.last_name,
-        native_language=body.native_language,
-    )
+    try:
+        user = create_user(
+            username=body.username,
+            password=body.password,
+            first_name=body.first_name,
+            last_name=body.last_name,
+            native_language=body.native_language,
+        )
+    except UsernameExistsError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already taken")
+
     token = create_access_token(user["userId"])
     return TokenResponse(access_token=token)
 

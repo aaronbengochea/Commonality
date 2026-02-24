@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 
+const PASSWORD_MIN_LENGTH = Number(process.env.NEXT_PUBLIC_PASSWORD_MIN_LENGTH) || 8;
+
 export default function SignupPage() {
   const router = useRouter();
   const [form, setForm] = useState({
@@ -67,11 +69,11 @@ export default function SignupPage() {
           />
           <input
             type="password"
-            placeholder="Password (min 8 characters)"
+            placeholder={`Password (min ${PASSWORD_MIN_LENGTH} characters)`}
             value={form.password}
             onChange={(e) => update("password", e.target.value)}
             required
-            minLength={8}
+            minLength={PASSWORD_MIN_LENGTH}
             className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-500 focus:outline-none"
           />
           <div className="grid grid-cols-2 gap-4">

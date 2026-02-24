@@ -28,6 +28,7 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8080
       - NEXT_PUBLIC_WS_URL=ws://localhost:8080
+      - NEXT_PUBLIC_PASSWORD_MIN_LENGTH=${PASSWORD_MIN_LENGTH:-8}
     depends_on:
       - backend
     networks:
@@ -38,6 +39,24 @@ services:
     ports:
       - "8000:8000"
     command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+    networks:
+      - commonality
+
+  dynamodb-admin:
+    image: aaronshaf/dynamodb-admin
+    container_name: deepthought-dynamodb-admin
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    environment:
+      DYNAMO_ENDPOINT: ${DYNAMODB_ENDPOINT}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+    depends_on:
+      dynamodb-local:
+        condition: service_healthy
     networks:
       - commonality
 
