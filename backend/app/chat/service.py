@@ -91,9 +91,9 @@ def get_chat_meta(chat_id: str) -> dict | None:
     return resp.get("Item")
 
 
-def send_message(chat_id: str, sender: dict, recipient: dict, text: str) -> dict:
+def send_message(chat_id: str, sender: dict, recipient: dict, text: str) -> tuple[dict, dict]:
     """Dual-write a message: original for sender, translated for recipient.
-    Returns the sender's message record."""
+    Returns (sender_item, recipient_item)."""
     msg_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
     sender_id = sender["userId"]
@@ -146,7 +146,7 @@ def send_message(chat_id: str, sender: dict, recipient: dict, text: str) -> dict
         ExpressionAttributeValues={":preview": translated_text[:100], ":now": now},
     )
 
-    return sender_item
+    return sender_item, recipient_item
 
 
 def get_messages(user_id: str, chat_id: str, cursor: str | None = None, limit: int = 50) -> tuple[list[dict], str | None]:
