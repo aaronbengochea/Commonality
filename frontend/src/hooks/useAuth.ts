@@ -1,16 +1,46 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { User } from "@/types";
+import { api } from "@/lib/api";
 
-export function useAuth() {
+export function useAuth(redirectTo?: string) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    // TODO: Check token and fetch /me in Phase 2
-    setLoading(false);
-  }, []);
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setLoading(false);
+      if (redirectTo) router.push(redirectTo);
+      return;
+    }
 
-  return { user, loading, setUser };
+    api
+      .get("/api/auth/me")
+      .then((data) => {
+        setUser({
+          userId: data.user_id,
+          username: data.username,
+          firstName: data.first_name,
+          lastName: data.last_name,
+          nativeLanguage: data.native_language,
+        });
+      })
+      .catch(() => {
+        localStorage.removeItem("token");
+        if (redirectTo) router.push(redirectTo);
+      })
+      .finally(() => setLoading(false));
+  }, [redirectTo, router]);
+
+  function logout() {
+    localStorage.removeItem("token");
+    setUser(null);
+    router.push("/");
+  }
+
+  return { user, loading, setUser, logout };
 }
