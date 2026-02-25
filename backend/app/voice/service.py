@@ -114,8 +114,12 @@ async def _room_agent(room_name: str, chat_id: str):
                                 audio_stream = rtc.AudioStream(pub.track)
                                 break
                         break
-                recording_active.set()
-                logger.info("Recording started for %s", speaker_id)
+                if audio_stream:
+                    recording_active.set()
+                    logger.info("Recording started for %s", speaker_id)
+                else:
+                    recording_speaker_id = None
+                    logger.warning("No audio track found for %s, ignoring RECORDING_START", speaker_id)
 
         elif sig == Signal.RECORDING_STOP:
             recording_active.clear()
@@ -248,7 +252,7 @@ async def _run_walkie_talkie_turn(
 
     await publish_signal(Signal.PROCESSING)
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     translated = await loop.run_in_executor(
         None, translate_text, full_transcript, source_lang, target_lang
     )
