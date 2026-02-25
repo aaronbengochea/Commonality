@@ -1,6 +1,12 @@
-# Commonality
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="Commonality" width="400" />
+</p>
 
-Real-time translation chat and voice app. Communicate in your native language — messages and speech are automatically translated so every participant sees and hears everything in their own language.
+<p align="center">
+  <em>Break the language barrier — chat and call in your native language while everyone hears theirs.<br/>Making it common to understand each other.</em>
+</p>
+
+---
 
 ## Features
 
