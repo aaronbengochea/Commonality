@@ -266,17 +266,19 @@ Two entries per message (sender's language + recipient's language). Sort key giv
 
 **Local development:** Docker Compose with 6 services (backend, frontend, DynamoDB Local, DynamoDB Admin, Redis, LiveKit dev server). Hot-reload via volume mounts.
 
-**Production deployment (planned):**
+**Demo deployment (current approach):** ngrok tunnels exposing the local docker-compose stack to the internet. No code changes required. LiveKit Cloud (free tier) for reliable voice calls across networks.
 
-| Service | Platform |
-|---|---|
-| Frontend | Vercel |
-| Backend | Railway |
-| Database | AWS DynamoDB (PAY_PER_REQUEST) |
-| Cache/Pub-sub | Upstash Redis (serverless, TLS) |
-| Voice | LiveKit Cloud |
+| Service | Runs on | Exposed via |
+|---|---|---|
+| Frontend | Docker (localhost:3000) | ngrok tunnel |
+| Backend | Docker (localhost:8080) | ngrok tunnel |
+| Database | DynamoDB Local (Docker) | Not exposed |
+| Cache/Pub-sub | Redis (Docker) | Not exposed |
+| Voice | LiveKit Cloud | Direct (WSS) |
 
-See [deploymentPlan.md](deploymentPlan.md) for full deployment instructions.
+**Future production deployment:** Vercel (frontend) + Railway (backend) + AWS DynamoDB + Upstash Redis + LiveKit Cloud. Can be pursued when the project outgrows demo tunneling.
+
+See [deploymentPlan.md](deploymentPlan.md) for full setup instructions.
 
 ---
 

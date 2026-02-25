@@ -1,4 +1,4 @@
-# Production Deployment Plan: Vercel + Railway + Managed Services
+# Demo Deployment Plan: ngrok Tunneling + LiveKit Cloud
 
 > **Internal plan transcript:** `.claude/projects/-Users-aaronbengo-Documents-github-commonality/03b1bb67-c43f-43f5-aaeb-944ed712500c.jsonl`
 
@@ -6,175 +6,184 @@
 
 ## Overview
 
-The app currently runs entirely via docker-compose locally (backend, frontend, DynamoDB Local, Redis, LiveKit). To test features like voice calling with multiple users and to make the app accessible, we need a production deployment.
+Expose the local docker-compose stack to the internet using ngrok tunnels. Everything runs on your machine — no cloud hosting, no AWS, no Redis migration. The only external service is **LiveKit Cloud** for reliable WebRTC voice calls (free tier).
 
-### Target Stack
+### Architecture
 
-| Service | Local (docker-compose) | Production |
+| Service | Runs on | Exposed via |
 |---|---|---|
-| **Frontend** | Docker / Next.js dev server | **Vercel** (native Next.js support) |
-| **Backend** | Docker / Uvicorn with reload | **Railway** (container hosting with WebSocket support) |
-| **Database** | DynamoDB Local (Docker) | **AWS DynamoDB** (managed) |
-| **Cache/Pub-sub** | Redis 7 (Docker) | **Upstash Redis** (serverless, TLS) |
-| **Voice** | LiveKit self-hosted (Docker) | **LiveKit Cloud** (managed) |
+| **Frontend** | Docker (localhost:3000) | ngrok tunnel |
+| **Backend** | Docker (localhost:8080) | ngrok tunnel |
+| **Database** | DynamoDB Local (Docker) | Not exposed (local only) |
+| **Cache/Pub-sub** | Redis (Docker) | Not exposed (local only) |
+| **Voice** | **LiveKit Cloud** | Direct (WSS URL) |
+
+### Why This Approach
+
+- **Zero code changes** to the backend or frontend
+- **No cloud accounts** needed (except ngrok free tier + LiveKit Cloud free tier)
+- Public URLs ready in under a minute
+- Good enough for MVP demos with multiple users
+- Can upgrade to full Vercel + Railway deployment later if needed
 
 ---
 
-## Commit 1: Production-Ready Backend
+## Prerequisites
 
-### 1a. Make `dynamodb_endpoint` optional
-
-**File:** `backend/app/config.py` (line 25)
-
-Change `dynamodb_endpoint: str = "http://dynamodb-local:8000"` to `dynamodb_endpoint: str | None = None`.
-
-- Local dev sets it via `.env`
-- Production leaves it unset so boto3 uses the default AWS endpoint
-
-### 1b. Conditionally pass `endpoint_url` to boto3
-
-**File:** `backend/app/dependencies.py` (lines 12-20)
-
-Build a `kwargs` dict and only include `endpoint_url` when `settings.dynamodb_endpoint` is not None:
-
-```python
-kwargs = {
-    "region_name": settings.aws_region,
-    "aws_access_key_id": settings.aws_access_key_id,
-    "aws_secret_access_key": settings.aws_secret_access_key,
-}
-if settings.dynamodb_endpoint:
-    kwargs["endpoint_url"] = settings.dynamodb_endpoint
-_dynamo_client = boto3.resource("dynamodb", **kwargs)
-```
-
-### 1c. Use on-demand billing for DynamoDB in production
-
-**File:** `backend/app/db/dynamo.py` (lines 89-103)
-
-In `create_tables()`, when `ENVIRONMENT != "development"`, strip `ProvisionedThroughput` from table defs and GSIs, add `BillingMode: "PAY_PER_REQUEST"`.
-
-The existing `ResourceInUseException` catch handles repeated startups gracefully.
-
-### 1d. Production Dockerfile
-
-**File:** `backend/Dockerfile`
-
-Replace current dev Dockerfile:
-- `pip install .` instead of `".[dev]"` (no test deps in production)
-- Remove `--reload` flag
-- Use `--workers 1` (WebSocket connections are stateful; Railway scales at container level)
-
-### 1e. Create `.dockerignore`
-
-**File (new):** `backend/.dockerignore`
-
-Exclude: `__pycache__`, `*.pyc`, `.pytest_cache`, `.venv`, `.env`, `tests/`, `.git`
-
-### 1f. Update `.env.example`
-
-**File:** `.env.example`
-
-Add `DYNAMODB_ENDPOINT=http://dynamodb-local:8000` with a comment that it should be **omitted** for production. Add `ENVIRONMENT` guidance.
+1. **ngrok** installed (`brew install ngrok` on macOS)
+2. **ngrok account** (free tier at [ngrok.com](https://ngrok.com)) — needed for multiple simultaneous tunnels
+3. **LiveKit Cloud account** (free tier at [livekit.io/cloud](https://livekit.io/cloud)) — needed for voice calls to work across networks
 
 ---
 
-## Commit 2: Update `docker-compose.yml` for Local Dev Parity
+## Step 1: Set Up LiveKit Cloud (One-Time)
 
-Ensure `docker-compose.yml` passes `DYNAMODB_ENDPOINT=http://dynamodb-local:8000` to the backend service explicitly, so local dev keeps working after the `config.py` default changed to `None`.
-
----
-
-## Files Modified (Summary)
-
-| File | Change |
-|---|---|
-| `backend/app/config.py` | `dynamodb_endpoint` → `str \| None = None` |
-| `backend/app/dependencies.py` | Conditionally pass `endpoint_url` |
-| `backend/app/db/dynamo.py` | `PAY_PER_REQUEST` billing in production |
-| `backend/Dockerfile` | Production-ready (no reload, no dev deps) |
-| `backend/.dockerignore` | New file |
-| `.env.example` | Add production guidance comments |
-| `docker-compose.yml` | Pass `DYNAMODB_ENDPOINT` explicitly to backend |
-
----
-
-## External Service Setup (Manual, Not Code)
-
-### AWS DynamoDB
-
-1. Create IAM user `commonality-backend` with DynamoDB permissions on tables: `users`, `chats`, `user_chats`, `messages`
-2. Generate access key + secret key
-3. Tables auto-create on first Railway startup via `create_tables()`
-
-### Upstash Redis
-
-1. Create account at [upstash.com](https://upstash.com)
-2. Create Redis database (region near Railway)
-3. Copy the `rediss://` URL — existing `redis.from_url()` handles TLS natively
-
-### LiveKit Cloud
+Local LiveKit only works on your machine. For voice calls between different users/devices, we need LiveKit Cloud.
 
 1. Create account at [livekit.io/cloud](https://livekit.io/cloud)
-2. Create project → get API key, secret, and WSS URL (`wss://YOUR_PROJECT.livekit.cloud`)
+2. Create a project
+3. Copy three values:
+   - **API Key** (e.g., `APIxxxxxxx`)
+   - **API Secret** (e.g., `xxxxxxxxxxxxxxxx`)
+   - **WSS URL** (e.g., `wss://your-project.livekit.cloud`)
+
+Update your `.env` file:
+
+```bash
+LIVEKIT_API_KEY=your-livekit-cloud-api-key
+LIVEKIT_API_SECRET=your-livekit-cloud-api-secret
+LIVEKIT_URL=wss://your-project.livekit.cloud
+```
 
 ---
 
-## Railway Deployment (Backend)
+## Step 2: Start the Local Stack
 
-1. Create Railway project, connect GitHub repo
-2. Set **root directory** to `backend`
-3. Railway auto-detects Dockerfile
-4. Set health check path: `/api/health`
-5. Configure environment variables:
+```bash
+make up
+```
 
-| Variable | Value |
+Verify everything is running:
+- Backend: http://localhost:8080/api/health → `{"status":"ok"}`
+- Frontend: http://localhost:3000 → login page loads
+
+> **Note:** The local LiveKit container still runs but won't be used — the backend now points to LiveKit Cloud via the `.env` change above.
+
+---
+
+## Step 3: Start ngrok Tunnels
+
+Open two terminal tabs and start tunnels for frontend and backend:
+
+**Terminal 1 — Backend tunnel:**
+```bash
+ngrok http 8080
+```
+
+**Terminal 2 — Frontend tunnel:**
+```bash
+ngrok http 3000
+```
+
+Note the HTTPS URLs ngrok gives you, e.g.:
+- Backend: `https://abc123.ngrok-free.app`
+- Frontend: `https://def456.ngrok-free.app`
+
+> **Tip:** With a free ngrok account you can run multiple tunnels. If you hit limits, use a single `ngrok.yml` config file to start both at once (see appendix).
+
+---
+
+## Step 4: Update Environment Variables
+
+Update your `.env` with the ngrok URLs:
+
+```bash
+# Frontend env vars (used at build time by Next.js)
+NEXT_PUBLIC_API_URL=https://abc123.ngrok-free.app
+NEXT_PUBLIC_WS_URL=wss://abc123.ngrok-free.app
+NEXT_PUBLIC_LIVEKIT_URL=wss://your-project.livekit.cloud
+
+# Backend CORS (allow the frontend tunnel)
+CORS_ORIGINS=https://def456.ngrok-free.app
+```
+
+Then rebuild and restart the frontend (it needs to rebake the `NEXT_PUBLIC_*` vars):
+
+```bash
+docker compose up -d --build frontend
+```
+
+The backend picks up `CORS_ORIGINS` on restart:
+
+```bash
+docker compose restart backend
+```
+
+---
+
+## Step 5: Verify
+
+1. Open the **frontend ngrok URL** (e.g., `https://def456.ngrok-free.app`) in a browser
+2. Register a user, log in → chat list loads
+3. Open a **second browser** (or incognito window) → register a second user
+4. Start a chat between them → send messages, verify real-time delivery
+5. Click Call → verify LiveKit Cloud connects and mic permission is requested
+6. Speak → verify voice translation pipeline works
+
+---
+
+## Sharing with Others
+
+Send the **frontend ngrok URL** to anyone you want to demo with. They can:
+- Open it on any device (phone, laptop, different network)
+- Register their own account
+- Chat and call with you in real time
+
+---
+
+## Limitations
+
+| Limitation | Details |
 |---|---|
-| `ENVIRONMENT` | `production` |
-| `OPENAI_API_KEY` | *(your key)* |
-| `OPENAI_TRANSLATION_MODEL` | `gpt-4o-mini` |
-| `ELEVENLABS_API_KEY` | *(your key)* |
-| `ELEVENLABS_TTS_VOICE_ID` | `Xb7hH8MSUJpSbSDYk0k2` |
-| `ELEVENLABS_TTS_MODEL` | `eleven_flash_v2_5` |
-| `LIVEKIT_API_KEY` | *(from LiveKit Cloud)* |
-| `LIVEKIT_API_SECRET` | *(from LiveKit Cloud)* |
-| `LIVEKIT_URL` | `wss://YOUR_PROJECT.livekit.cloud` |
-| `AWS_REGION` | `us-east-1` |
-| `AWS_ACCESS_KEY_ID` | *(from IAM user)* |
-| `AWS_SECRET_ACCESS_KEY` | *(from IAM user)* |
-| `REDIS_URL` | `rediss://...` *(from Upstash)* |
-| `JWT_SECRET` | *(generate via `openssl rand -base64 32`)* |
-| `BACKEND_PORT` | `8080` |
-| `PORT` | `8080` |
-| `CORS_ORIGINS` | `https://YOUR-APP.vercel.app` |
-
-> **Do NOT set `DYNAMODB_ENDPOINT`** — omitting it makes boto3 use standard AWS endpoints.
+| **ngrok URLs change** | Free tier gives random URLs on each restart. You'll need to update `.env` and rebuild frontend each time. A paid ngrok plan gives stable subdomains. |
+| **Your machine must be on** | Everything runs locally — if your laptop sleeps or loses internet, the demo goes down |
+| **ngrok free tier bandwidth** | Sufficient for demos, not for sustained multi-user load |
+| **WebSocket through ngrok** | Works well for text chat; occasional latency spikes possible |
 
 ---
 
-## Vercel Deployment (Frontend)
+## Appendix: ngrok Config for Both Tunnels at Once
 
-1. Import repo on Vercel, set **root directory** to `frontend`
-2. Vercel auto-detects Next.js (already has `output: "standalone"`)
-3. Configure environment variables:
+Create `~/.ngrok2/ngrok.yml` (or add to existing):
 
-| Variable | Value |
+```yaml
+tunnels:
+  backend:
+    addr: 8080
+    proto: http
+  frontend:
+    addr: 3000
+    proto: http
+```
+
+Then start both with:
+
+```bash
+ngrok start --all
+```
+
+---
+
+## Future: Full Production Deployment
+
+When ready to move beyond demo tunneling, the production path is:
+
+| Service | Platform |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | `https://YOUR-RAILWAY-DOMAIN.up.railway.app` |
-| `NEXT_PUBLIC_WS_URL` | `wss://YOUR-RAILWAY-DOMAIN.up.railway.app` |
-| `NEXT_PUBLIC_LIVEKIT_URL` | `wss://YOUR_PROJECT.livekit.cloud` |
-| `NEXT_PUBLIC_PASSWORD_MIN_LENGTH` | `8` |
+| Frontend | Vercel |
+| Backend | Railway |
+| Database | AWS DynamoDB (PAY_PER_REQUEST) |
+| Cache/Pub-sub | Upstash Redis |
+| Voice | LiveKit Cloud |
 
-> **Note:** `NEXT_PUBLIC_` vars are baked at build time. Changing the Railway domain requires a Vercel redeploy.
-
----
-
-## Verification Checklist
-
-1. `make up` locally — confirm local dev still works (DynamoDB Local, Redis, etc.)
-2. Deploy backend to Railway → `curl https://RAILWAY_DOMAIN/api/health` returns `{"status":"ok"}`
-3. Check AWS Console → 4 DynamoDB tables created
-4. Deploy frontend to Vercel → login page loads
-5. Register a user, log in → chat list loads
-6. Open two browser tabs as different users → send messages, verify real-time delivery
-7. Click Call → verify LiveKit Cloud connects and requests mic permission
+This requires code changes (optional DynamoDB endpoint, production Dockerfile, on-demand billing). A full production deployment plan can be written when needed.
