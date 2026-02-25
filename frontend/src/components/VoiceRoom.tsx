@@ -23,7 +23,7 @@ export default function VoiceRoom({ token, serverUrl, onDisconnected }: Props) {
       video={false}
       onDisconnected={onDisconnected}
     >
-      <div className="flex flex-col items-center gap-6 p-8">
+      <div className="glass-card flex flex-col items-center gap-6 rounded-xl p-8">
         <RoomAudioRenderer />
         <ControlBar
           variation="verbose"

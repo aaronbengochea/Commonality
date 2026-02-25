@@ -2,9 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import VoiceRoom from "@/components/VoiceRoom";
+import { Card } from "@/components/ui/card";
+import { Alert } from "@/components/ui/alert";
+import { ArrowLeft, Phone } from "lucide-react";
 
 const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || "ws://localhost:7880";
 
@@ -37,33 +41,55 @@ export default function VoiceRoomPage() {
     router.push(`/chat/${roomId}`);
   }
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
   if (!user) return null;
 
   return (
-    <main className="flex h-screen flex-col items-center justify-center">
-      <header className="absolute left-4 top-4">
-        <a href={`/chat/${roomId}`} className="text-blue-600 hover:underline">
-          &larr; Back to chat
-        </a>
-      </header>
+    <main className="flex min-h-screen flex-col items-center justify-center px-4">
+      <div className="absolute left-6 top-6">
+        <Link
+          href={`/chat/${roomId}`}
+          className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to chat
+        </Link>
+      </div>
 
-      <h1 className="mb-2 text-2xl font-bold">Voice Call</h1>
-      <p className="mb-6 text-gray-500">Room: {roomId}</p>
+      <Card className="flex w-full max-w-md flex-col items-center py-10">
+        <Phone className="mb-4 h-10 w-10 text-muted-foreground" />
+        <h1 className="mb-1 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-2xl font-bold text-transparent">
+          Voice Call
+        </h1>
+        <p className="mb-6 text-sm text-muted-foreground">
+          {token ? "In call" : "Connecting..."}
+        </p>
 
-      {error && (
-        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
-      )}
+        {error && (
+          <Alert variant="destructive" className="mb-4 w-full">{error}</Alert>
+        )}
 
-      {token ? (
-        <VoiceRoom
-          token={token}
-          serverUrl={LIVEKIT_URL}
-          onDisconnected={handleDisconnected}
-        />
-      ) : (
-        !error && <p className="text-gray-500">Connecting to voice room...</p>
-      )}
+        {token ? (
+          <VoiceRoom
+            token={token}
+            serverUrl={LIVEKIT_URL}
+            onDisconnected={handleDisconnected}
+          />
+        ) : (
+          !error && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
+              <span className="text-sm">Connecting to voice room...</span>
+            </div>
+          )
+        )}
+      </Card>
     </main>
   );
 }
