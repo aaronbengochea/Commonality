@@ -8,4 +8,3 @@ class VoiceTokenRequest(BaseModel):
 class VoiceTokenResponse(BaseModel):
     token: str
     room_name: str
-    livekit_url: str

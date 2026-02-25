@@ -2,9 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.auth.dependencies import get_current_user
 from app.chat.service import get_chat_meta
-from app.config import settings
 from app.voice.models import VoiceTokenRequest, VoiceTokenResponse
-from app.voice.service import generate_livekit_token
+from app.voice.service import ensure_pipeline_for_room, generate_livekit_token
 
 router = APIRouter()
 
@@ -29,8 +28,10 @@ async def create_voice_token(
         room_name=room_name,
     )
 
+    # Start translation pipeline agent for this room (idempotent)
+    await ensure_pipeline_for_room(room_name, body.chat_id)
+
     return VoiceTokenResponse(
         token=token,
         room_name=room_name,
-        livekit_url=settings.livekit_url,
     )

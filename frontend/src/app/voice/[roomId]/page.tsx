@@ -17,15 +17,20 @@ export default function VoiceRoomPage() {
 
   useEffect(() => {
     if (!user || !roomId) return;
+    let cancelled = false;
 
     api
       .post("/api/voice/token", { chat_id: roomId })
       .then((data) => {
-        setToken(data.token);
+        if (!cancelled) setToken(data.token);
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Failed to join voice room");
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to join voice room");
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [user, roomId]);
 
   function handleDisconnected() {
