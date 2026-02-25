@@ -38,6 +38,7 @@ class Settings(BaseSettings):
 
     # Server
     backend_port: int = 8080
+    cors_origins: str = "http://localhost:3000"
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 
