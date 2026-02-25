@@ -79,6 +79,7 @@ export default function VoiceRoomPage() {
           <VoiceRoom
             token={token}
             serverUrl={LIVEKIT_URL}
+            userId={user.userId}
             onDisconnected={handleDisconnected}
           />
         ) : (
