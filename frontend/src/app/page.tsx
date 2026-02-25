@@ -7,7 +7,7 @@ export default function LandingPage() {
     <main className="flex min-h-screen flex-col items-center px-4 pt-16 text-center">
       <Logo size={450} variant="default" />
 
-      <h1 className="mt-1 pb-4 bg-gradient-to-r from-indigo-400 to-pink-500 bg-clip-text text-5xl font-bold tracking-tight text-transparent sm:text-6xl">
+      <h1 className="mt-12 pb-4 bg-gradient-to-r from-indigo-400 to-pink-500 bg-clip-text text-5xl font-bold tracking-tight text-transparent sm:text-6xl">
         Break the Language Barrier
       </h1>
 

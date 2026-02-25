@@ -40,13 +40,13 @@ export function Logo({ size = 200, showText = true, variant = 'default' }: LogoP
         {/* Left chat bubble with sound wave */}
         <g filter="url(#glow)">
           <path
-            d="M25 20 C15 20, 10 25, 10 35 L10 50 C10 60, 15 65, 25 65 L28 65 L25 75 L32 65 L40 65 C50 65, 55 60, 55 50 L55 35 C55 25, 50 20, 40 20 Z"
+            d="M25 10 C15 10, 10 15, 10 25 L10 45 C10 55, 15 60, 25 60 L28 60 L25 70 L32 60 L45 60 C55 60, 60 55, 60 45 L60 25 C60 15, 55 10, 45 10 Z"
             fill="url(#gradient1)"
             opacity="0.9"
           />
           {/* Sound wave lines inside */}
           <path
-            d="M22 38 L28 42 L22 46 M30 35 L38 42.5 L30 50 M40 38 L46 42 L40 46"
+            d="M22 28 L28 33 L22 38 M30 25 L38 33 L30 41 M40 28 L46 33 L40 38"
             stroke="white"
             strokeWidth="2.5"
             strokeLinecap="round"
@@ -58,34 +58,15 @@ export function Logo({ size = 200, showText = true, variant = 'default' }: LogoP
         {/* Right chat bubble with connection dots */}
         <g filter="url(#glow)">
           <path
-            d="M60 25 C50 25, 45 30, 45 40 L45 55 C45 65, 50 70, 60 70 L63 70 L60 80 L67 70 L75 70 C85 70, 90 65, 90 55 L90 40 C90 30, 85 25, 75 25 Z"
+            d="M55 20 C45 20, 40 25, 40 35 L40 55 C40 65, 45 70, 55 70 L58 70 L55 80 L62 70 L75 70 C85 70, 90 65, 90 55 L90 35 C90 25, 85 20, 75 20 Z"
             fill="url(#gradient2)"
             opacity="0.9"
           />
           {/* Connection dots */}
-          <circle cx="60" cy="47.5" r="3" fill="white" />
-          <circle cx="67.5" cy="47.5" r="3" fill="white" />
-          <circle cx="75" cy="47.5" r="3" fill="white" />
+          <circle cx="58" cy="45" r="3" fill="white" />
+          <circle cx="65" cy="45" r="3" fill="white" />
+          <circle cx="72" cy="45" r="3" fill="white" />
         </g>
-
-        {/* Connection line between bubbles */}
-        <line
-          x1="50"
-          y1="42.5"
-          x2="50"
-          y2="42.5"
-          stroke="url(#gradient1)"
-          strokeWidth="2"
-          opacity="0.6"
-        >
-          <animate
-            attributeName="x2"
-            from="50"
-            to="50"
-            dur="2s"
-            repeatCount="indefinite"
-          />
-        </line>
       </svg>
 
       {/* Text logo */}
