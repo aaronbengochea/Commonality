@@ -46,6 +46,7 @@ async def _redis_listener(user_id: str):
         while True:
             msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
             if msg and msg["type"] == "message":
+                logger.info("Redis listener received message for user %s", user_id)
                 await _deliver_to_local(user_id, msg["data"])
             else:
                 await asyncio.sleep(0.05)
@@ -124,8 +125,12 @@ async def chat_websocket(websocket: WebSocket):
                 continue
 
             # Dual-write message (translate + store) with error handling
+            # Run in executor to avoid blocking the event loop with synchronous DynamoDB/OpenAI calls
             try:
-                sender_msg, recipient_msg = send_message(chat_id, user, other_user, text)
+                loop = asyncio.get_event_loop()
+                sender_msg, recipient_msg = await loop.run_in_executor(
+                    None, send_message, chat_id, user, other_user, text
+                )
             except Exception:
                 logger.exception("Failed to send message in chat %s", chat_id)
                 await websocket.send_text(json.dumps({"error": "Failed to send message"}))
@@ -157,9 +162,11 @@ async def chat_websocket(websocket: WebSocket):
             })
 
             # Deliver to sender via local connection
+            logger.info("Delivering message to sender %s locally", user_id)
             await _deliver_to_local(user_id, sender_payload)
 
             # Deliver to recipient via Redis pub/sub (works across instances)
+            logger.info("Publishing message to recipient %s via Redis", other_user_id)
             await publish(f"user:{other_user_id}:messages", recipient_payload)
 
     except WebSocketDisconnect:

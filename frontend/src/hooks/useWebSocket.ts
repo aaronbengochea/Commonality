@@ -29,11 +29,17 @@ export function useWebSocket(onMessage: (data: string) => void) {
     };
 
     ws.onclose = () => {
-      wsRef.current = null;
+      // Only clear the ref if this is still the active WebSocket
+      // (prevents stale close from React Strict Mode's first mount overwriting the real one)
+      if (wsRef.current === ws) {
+        wsRef.current = null;
+      }
     };
 
     return () => {
-      ws.close();
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
+      }
       wsRef.current = null;
       pendingQueue.current = [];
     };
