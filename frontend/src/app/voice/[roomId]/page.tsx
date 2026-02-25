@@ -64,7 +64,7 @@ export default function VoiceRoomPage() {
 
       <Card className="flex w-full max-w-md flex-col items-center py-10">
         <Phone className="mb-4 h-10 w-10 text-muted-foreground" />
-        <h1 className="mb-1 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-2xl font-bold text-transparent">
+        <h1 className="mb-1 bg-gradient-to-r from-indigo-400 to-pink-500 bg-clip-text text-2xl font-bold text-transparent">
           Voice Call
         </h1>
         <p className="mb-6 text-sm text-muted-foreground">
@@ -84,7 +84,7 @@ export default function VoiceRoomPage() {
         ) : (
           !error && (
             <div className="flex items-center gap-2 text-muted-foreground">
-              <div className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
+              <div className="h-2 w-2 animate-pulse rounded-full bg-indigo-500" />
               <span className="text-sm">Connecting to voice room...</span>
             </div>
           )

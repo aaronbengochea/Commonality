@@ -12,7 +12,7 @@
     --foreground: 210 40% 98%;
     --card: 222 47% 8%;
     --card-foreground: 210 40% 98%;
-    --primary: 217 91% 60%;
+    --primary: 239 84% 67%;
     --primary-foreground: 222 47% 6%;
     --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
@@ -24,7 +24,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 217 33% 17%;
     --input: 217 33% 17%;
-    --ring: 224 76% 48%;
+    --ring: 239 84% 67%;
   }
 }
 
@@ -38,14 +38,14 @@
   }
 
   .btn-gradient {
-    @apply bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium
-      hover:from-blue-600 hover:to-purple-700 transition-all duration-200;
+    @apply bg-gradient-to-r from-indigo-500 to-pink-600 text-white font-medium
+      hover:from-indigo-600 hover:to-pink-700 transition-all duration-200;
   }
 
   .input-glass {
     @apply bg-white/5 border border-white/10 rounded-lg px-4 py-3
       text-white placeholder:text-white/40
-      focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50
+      focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50
       transition-all duration-200;
   }
 }

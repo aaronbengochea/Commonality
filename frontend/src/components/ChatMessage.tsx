@@ -19,7 +19,7 @@ export default function ChatMessage({ message, isOwn }: Props) {
         <div
           className={`rounded-2xl px-4 py-2.5 ${
             isOwn
-              ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
+              ? "bg-gradient-to-r from-indigo-500 to-pink-600 text-white"
               : "glass-bubble text-foreground"
           }`}
         >

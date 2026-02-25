@@ -47,7 +47,7 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       backgroundImage: {
-        "gradient-accent": "linear-gradient(135deg, #3b82f6, #8b5cf6)",
+        "gradient-accent": "linear-gradient(135deg, #6366f1, #ec4899)",
       },
       backdropBlur: {
         glass: "16px",

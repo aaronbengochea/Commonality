@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
+import { Logo } from "@/components/Logo";
 
 const PASSWORD_MIN_LENGTH = Number(process.env.NEXT_PUBLIC_PASSWORD_MIN_LENGTH) || 8;
 
@@ -53,11 +54,12 @@ export default function SignupPage() {
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
       <Card className="w-full max-w-md space-y-6">
-        <div className="text-center">
-          <h1 className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-4xl font-bold text-transparent">
+        <div className="flex flex-col items-center">
+          <Logo size={120} variant="default" />
+          <h1 className="mt-2 bg-gradient-to-r from-indigo-400 to-pink-500 bg-clip-text text-2xl font-bold text-transparent">
             Sign Up
           </h1>
-          <p className="mt-2 text-muted-foreground">
+          <p className="mt-1 text-muted-foreground">
             Create your Commonality account
           </p>
         </div>

@@ -19,7 +19,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} font-sans min-h-screen bg-background text-foreground`}
       >
-        <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/20 via-background to-background" />
+        <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-background to-background" />
         {children}
       </body>
     </html>

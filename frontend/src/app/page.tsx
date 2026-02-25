@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
+import { Logo } from "@/components/Logo";
 
 export default function Home() {
   const router = useRouter();
@@ -35,10 +36,8 @@ export default function Home() {
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
       <Card className="w-full max-w-md space-y-6">
-        <div className="text-center">
-          <h1 className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-4xl font-bold text-transparent">
-            Commonality
-          </h1>
+        <div className="flex flex-col items-center">
+          <Logo size={200} variant="default" />
           <p className="mt-2 text-muted-foreground">
             Chat and call in any language
           </p>
