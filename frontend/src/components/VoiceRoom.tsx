@@ -1,15 +1,41 @@
-// LiveKit voice room component — Phase 4
+"use client";
+
+import {
+  LiveKitRoom,
+  RoomAudioRenderer,
+  ControlBar,
+} from "@livekit/components-react";
+import "@livekit/components-styles";
 
 interface Props {
-  roomId: string;
   token: string;
+  serverUrl: string;
+  onDisconnected?: () => void;
 }
 
-export default function VoiceRoom({ roomId, token }: Props) {
+export default function VoiceRoom({ token, serverUrl, onDisconnected }: Props) {
   return (
-    <div className="flex flex-col items-center gap-4">
-      <p className="text-gray-500">Voice room: {roomId}</p>
-      {/* TODO: LiveKit React components in Phase 4 */}
-    </div>
+    <LiveKitRoom
+      token={token}
+      serverUrl={serverUrl}
+      connect={true}
+      audio={true}
+      video={false}
+      onDisconnected={onDisconnected}
+    >
+      <div className="flex flex-col items-center gap-6 p-8">
+        <RoomAudioRenderer />
+        <ControlBar
+          variation="verbose"
+          controls={{
+            microphone: true,
+            camera: false,
+            chat: false,
+            screenShare: false,
+            leave: true,
+          }}
+        />
+      </div>
+    </LiveKitRoom>
   );
 }

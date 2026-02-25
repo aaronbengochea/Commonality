@@ -115,7 +115,12 @@ export default function ChatConversationPage() {
           &larr; Back
         </a>
         <h1 className="text-lg font-semibold">Chat</h1>
-        <div className="w-16" />
+        <a
+          href={`/voice/${chatId}`}
+          className="rounded-lg bg-green-600 px-3 py-1.5 text-sm text-white hover:bg-green-700"
+        >
+          Call
+        </a>
       </header>
       <div className="flex-1 overflow-y-auto p-4">
         {error && (
