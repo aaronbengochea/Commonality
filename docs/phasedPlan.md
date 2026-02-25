@@ -29,9 +29,9 @@
 19. ✅ Implement message history endpoint (paginated)
 20. ✅ Frontend: chat list page, chat conversation page with WebSocket
 
-## Phase 4: Voice
+## Phase 4: Voice ✅
 
-21. Implement LiveKit token generation endpoint
-22. Implement STT → translate → TTS pipeline service
-23. Frontend: voice room page with LiveKit React SDK
-24. Wire up real-time voice translation in call
+21. ✅ Implement LiveKit token generation endpoint
+22. ✅ Implement STT → translate → TTS pipeline service
+23. ✅ Frontend: voice room page with LiveKit React SDK
+24. ✅ Wire up real-time voice translation in call
