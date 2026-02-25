@@ -13,6 +13,7 @@
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "@livekit/components-react": "^2.6.0",
+    "@livekit/components-styles": "^1.1.0",
     "livekit-client": "^2.6.0",
     "jose": "^5.9.0",
     "clsx": "^2.1.0",
