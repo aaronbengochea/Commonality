@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   LiveKitRoom,
-  RoomAudioRenderer,
   useRoomContext,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
+import { RoomEvent, Track } from "livekit-client";
 import { Mic, MicOff, LogOut } from "lucide-react";
 import { useWalkieTalkie } from "@/hooks/useWalkieTalkie";
 import type { TranscriptEntry } from "@/hooks/useWalkieTalkie";
@@ -128,10 +128,65 @@ function WalkieTalkieControls({
         Leave Room
       </button>
 
-      {/* Audio renderer for TTS playback */}
-      <RoomAudioRenderer />
+      {/* Only play audio from the translation-agent (TTS tracks), not raw user audio */}
+      <AgentAudioRenderer />
     </div>
   );
+}
+
+/**
+ * Custom audio renderer that only plays tracks from the "translation-agent"
+ * participant. This prevents raw mic audio from being played to other users —
+ * only the processed TTS translations are heard.
+ */
+function AgentAudioRenderer() {
+  const room = useRoomContext();
+  const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
+
+  useEffect(() => {
+    if (!room) return;
+
+    const handleTrackSubscribed = (
+      track: any,
+      publication: any,
+      participant: any,
+    ) => {
+      // Only play audio from the translation-agent
+      if (participant.identity !== "translation-agent") return;
+      if (track.kind !== Track.Kind.Audio) return;
+
+      const audioEl = track.attach();
+      audioEl.autoplay = true;
+      audioElementsRef.current.set(publication.trackSid, audioEl);
+    };
+
+    const handleTrackUnsubscribed = (
+      track: any,
+      publication: any,
+    ) => {
+      const audioEl = audioElementsRef.current.get(publication.trackSid);
+      if (audioEl) {
+        track.detach(audioEl);
+        audioEl.remove();
+        audioElementsRef.current.delete(publication.trackSid);
+      }
+    };
+
+    room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+    room.on(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
+
+    return () => {
+      room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+      room.off(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
+      // Clean up any remaining audio elements
+      audioElementsRef.current.forEach((el, sid) => {
+        el.remove();
+      });
+      audioElementsRef.current.clear();
+    };
+  }, [room]);
+
+  return null; // Audio plays via attached HTMLAudioElements, no visible UI needed
 }
 
 export default function VoiceRoom({
