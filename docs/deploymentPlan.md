@@ -1,28 +1,31 @@
 # Demo Deployment Plan: ngrok Tunneling + LiveKit Cloud
 
-> **Internal plan transcript:** `.claude/projects/-Users-aaronbengo-Documents-github-commonality/03b1bb67-c43f-43f5-aaeb-944ed712500c.jsonl`
-
 ---
 
 ## Overview
 
-Expose the local docker-compose stack to the internet using ngrok tunnels. Everything runs on your machine — no cloud hosting, no AWS, no Redis migration. The only external service is **LiveKit Cloud** for reliable WebRTC voice calls (free tier).
+Expose the local docker-compose stack to the internet using a single ngrok tunnel through an nginx reverse proxy. Everything runs on your machine — no cloud hosting, no AWS, no Redis migration. The only external service is **LiveKit Cloud** for reliable WebRTC voice calls (free tier).
 
 ### Architecture
 
 | Service | Runs on | Exposed via |
 |---|---|---|
-| **Frontend** | Docker (localhost:3000) | ngrok tunnel |
-| **Backend** | Docker (localhost:8080) | ngrok tunnel |
+| **nginx** | Docker (localhost:8888) | ngrok tunnel (single HTTPS URL) |
+| **Frontend** | Docker (localhost:3000) | nginx proxy (path: `/*`) |
+| **Backend** | Docker (localhost:8080) | nginx proxy (path: `/api/*`) |
 | **Database** | DynamoDB Local (Docker) | Not exposed (local only) |
 | **Cache/Pub-sub** | Redis (Docker) | Not exposed (local only) |
 | **Voice** | **LiveKit Cloud** | Direct (WSS URL) |
 
+nginx routes `/api/*` (including WebSocket upgrades for `/api/ws/*`) to the backend, and everything else to the frontend. This lets us use a **single ngrok tunnel** on the free tier.
+
 ### Why This Approach
 
+- **Single ngrok tunnel** — works on the free tier (no paid plan needed)
 - **Zero code changes** to the backend or frontend
 - **No cloud accounts** needed (except ngrok free tier + LiveKit Cloud free tier)
-- Public URLs ready in under a minute
+- Public URL ready in under a minute
+- Automated scripts to update `.env` and restart services
 - Good enough for MVP demos with multiple users
 - Can upgrade to full Vercel + Railway deployment later if needed
 
@@ -31,7 +34,7 @@ Expose the local docker-compose stack to the internet using ngrok tunnels. Every
 ## Prerequisites
 
 1. **ngrok** installed (`brew install ngrok` on macOS)
-2. **ngrok account** (free tier at [ngrok.com](https://ngrok.com)) — needed for multiple simultaneous tunnels
+2. **ngrok account** (free tier at [ngrok.com](https://ngrok.com)) — authenticate with `ngrok config add-authtoken <token>`
 3. **LiveKit Cloud account** (free tier at [livekit.io/cloud](https://livekit.io/cloud)) — needed for voice calls to work across networks
 
 ---
@@ -66,64 +69,49 @@ make up
 Verify everything is running:
 - Backend: http://localhost:8080/api/health → `{"status":"ok"}`
 - Frontend: http://localhost:3000 → login page loads
+- nginx: http://localhost:8888 → login page loads (proxied from frontend)
 
 > **Note:** The local LiveKit container still runs but won't be used — the backend now points to LiveKit Cloud via the `.env` change above.
 
 ---
 
-## Step 3: Start ngrok Tunnels
+## Step 3: Start the ngrok Tunnel
 
-Open two terminal tabs and start tunnels for frontend and backend:
+In a separate terminal:
 
-**Terminal 1 — Backend tunnel:**
 ```bash
-ngrok http 8080
+make tunnel
 ```
 
-**Terminal 2 — Frontend tunnel:**
-```bash
-ngrok http 3000
-```
+This runs `ngrok start --all`, which starts a single tunnel to port 8888 (nginx).
 
-Note the HTTPS URLs ngrok gives you, e.g.:
-- Backend: `https://abc123.ngrok-free.app`
-- Frontend: `https://def456.ngrok-free.app`
-
-> **Tip:** With a free ngrok account you can run multiple tunnels. If you hit limits, use a single `ngrok.yml` config file to start both at once (see appendix).
+Note the HTTPS URL ngrok gives you, e.g.:
+- `https://abc123.ngrok-free.app`
 
 ---
 
-## Step 4: Update Environment Variables
+## Step 4: Update Environment & Restart
 
-Update your `.env` with the ngrok URLs:
-
-```bash
-# Frontend env vars (used at build time by Next.js)
-NEXT_PUBLIC_API_URL=https://abc123.ngrok-free.app
-NEXT_PUBLIC_WS_URL=wss://abc123.ngrok-free.app
-NEXT_PUBLIC_LIVEKIT_URL=wss://your-project.livekit.cloud
-
-# Backend CORS (allow the frontend tunnel)
-CORS_ORIGINS=https://def456.ngrok-free.app
-```
-
-Then rebuild and restart the frontend (it needs to rebake the `NEXT_PUBLIC_*` vars):
+In your main terminal, run:
 
 ```bash
-docker compose up -d --build frontend
+make tunnel-restart
 ```
 
-The backend picks up `CORS_ORIGINS` on restart:
+This automatically:
+1. Reads the tunnel URL from ngrok's local API
+2. Updates `.env` with the correct `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL`, and `CORS_ORIGINS`
+3. Rebuilds the frontend (to bake in the `NEXT_PUBLIC_*` vars)
+4. Restarts the backend (to pick up new `CORS_ORIGINS`)
+5. Ensures nginx is running
 
-```bash
-docker compose restart backend
-```
+All three env vars point to the **same ngrok URL** since nginx handles the routing.
 
 ---
 
 ## Step 5: Verify
 
-1. Open the **frontend ngrok URL** (e.g., `https://def456.ngrok-free.app`) in a browser
+1. Open the **ngrok URL** (e.g., `https://abc123.ngrok-free.app`) in a browser
 2. Register a user, log in → chat list loads
 3. Open a **second browser** (or incognito window) → register a second user
 4. Start a chat between them → send messages, verify real-time delivery
@@ -132,9 +120,23 @@ docker compose restart backend
 
 ---
 
+## Quick Reference
+
+```bash
+# Full startup sequence:
+make up                # Start docker stack
+make tunnel            # Start ngrok (in separate terminal)
+make tunnel-restart    # Auto-configure .env and restart services
+
+# Individual commands:
+make tunnel-env        # Just update .env from ngrok (no restart)
+```
+
+---
+
 ## Sharing with Others
 
-Send the **frontend ngrok URL** to anyone you want to demo with. They can:
+Send the **ngrok URL** to anyone you want to demo with. They can:
 - Open it on any device (phone, laptop, different network)
 - Register their own account
 - Chat and call with you in real time
@@ -145,32 +147,10 @@ Send the **frontend ngrok URL** to anyone you want to demo with. They can:
 
 | Limitation | Details |
 |---|---|
-| **ngrok URLs change** | Free tier gives random URLs on each restart. You'll need to update `.env` and rebuild frontend each time. A paid ngrok plan gives stable subdomains. |
+| **ngrok URLs change** | Free tier gives random URLs on each restart. Run `make tunnel-restart` to auto-update. A paid ngrok plan gives stable subdomains. |
 | **Your machine must be on** | Everything runs locally — if your laptop sleeps or loses internet, the demo goes down |
 | **ngrok free tier bandwidth** | Sufficient for demos, not for sustained multi-user load |
 | **WebSocket through ngrok** | Works well for text chat; occasional latency spikes possible |
-
----
-
-## Appendix: ngrok Config for Both Tunnels at Once
-
-Create `~/.ngrok2/ngrok.yml` (or add to existing):
-
-```yaml
-tunnels:
-  backend:
-    addr: 8080
-    proto: http
-  frontend:
-    addr: 3000
-    proto: http
-```
-
-Then start both with:
-
-```bash
-ngrok start --all
-```
 
 ---
 

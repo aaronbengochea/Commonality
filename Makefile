@@ -2,7 +2,8 @@ PYTHON := python3.12
 
 .PHONY: up down build restart logs clean setup \
         venv-backend install install-backend install-frontend \
-        test lint shell-backend shell-frontend
+        test lint shell-backend shell-frontend \
+        tunnel tunnel-env tunnel-restart
 
 # ─── Setup ────────────────────────────────────────────────────
 
@@ -75,3 +76,19 @@ shell-backend:
 # Open a shell in the frontend container
 shell-frontend:
 	docker compose exec frontend sh
+
+# ─── ngrok Tunneling ─────────────────────────────────────────
+
+# Start ngrok tunnels for backend and frontend
+tunnel:
+	ngrok start --all
+
+# Update .env with current ngrok tunnel URLs
+tunnel-env:
+	./scripts/ngrok-update-env.sh
+
+# Update .env and restart services for ngrok (run after `make tunnel`)
+tunnel-restart: tunnel-env
+	docker compose up -d --build frontend
+	docker compose restart backend
+	docker compose up -d nginx

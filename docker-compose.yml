@@ -71,6 +71,18 @@ services:
     networks:
       - commonality
 
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8888:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - commonality
+
   redis:
     image: redis:7-alpine
     ports:
