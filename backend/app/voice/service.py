@@ -10,6 +10,7 @@ from livekit import api, rtc
 from app.auth.service import get_user_by_id
 from app.chat.service import get_chat_meta, translate_text
 from app.config import settings
+from app.voice.signals import Signal, TOPIC, encode_signal, decode_signal
 
 logger = logging.getLogger(__name__)
 
@@ -59,13 +60,11 @@ async def ensure_pipeline_for_room(room_name: str, chat_id: str):
 
 
 async def _room_agent(room_name: str, chat_id: str):
-    """Join a LiveKit room as a server-side agent and run translation pipelines
-    for each participant's audio track."""
+    """Join a LiveKit room and orchestrate walkie-talkie translation turns."""
     agent_token = _generate_agent_token(room_name)
     livekit_url = settings.livekit_url
     room = rtc.Room()
 
-    # Resolve chat members and their languages
     chat_meta = get_chat_meta(chat_id)
     if not chat_meta:
         return
@@ -80,151 +79,188 @@ async def _room_agent(room_name: str, chat_id: str):
     if len(members) < 2:
         return
 
-    pipeline_tasks: dict[str, asyncio.Task] = {}
     stop_event = asyncio.Event()
+    recording_speaker_id: str | None = None
+    audio_stream: rtc.AudioStream | None = None
+    recording_active = asyncio.Event()
+
+    async def _publish_signal(signal: Signal, **kwargs):
+        payload = encode_signal(signal, **kwargs)
+        await room.local_participant.publish_data(
+            payload, reliable=True, topic=TOPIC
+        )
 
     @room.on("track_subscribed")
-    def on_track_subscribed(
-        track: rtc.Track,
-        publication: rtc.RemoteTrackPublication,
-        participant: rtc.RemoteParticipant,
-    ):
+    def on_track_subscribed(track, publication, participant):
         if track.kind != rtc.TrackKind.KIND_AUDIO:
             return
+        logger.debug("Audio track available for %s", participant.identity)
 
-        speaker_id = participant.identity
-        if speaker_id not in members or speaker_id in pipeline_tasks:
+    @room.on("data_received")
+    def on_data_received(data_packet: rtc.DataPacket):
+        nonlocal recording_speaker_id, audio_stream
+        if data_packet.topic != TOPIC:
             return
+        sig, payload = decode_signal(data_packet.data.decode("utf-8"))
 
-        speaker = members[speaker_id]
-        # Find the other participant
-        listener_id = next((uid for uid in members if uid != speaker_id), None)
-        if not listener_id:
-            return
-        listener = members[listener_id]
+        if sig == Signal.RECORDING_START:
+            speaker_id = payload.get("userId")
+            if speaker_id and speaker_id in members:
+                recording_speaker_id = speaker_id
+                for participant in room.remote_participants.values():
+                    if participant.identity == speaker_id:
+                        for pub in participant.track_publications.values():
+                            if pub.track and pub.track.kind == rtc.TrackKind.KIND_AUDIO:
+                                audio_stream = rtc.AudioStream(pub.track)
+                                break
+                        break
+                recording_active.set()
+                logger.info("Recording started for %s", speaker_id)
 
-        source_lang = speaker.get("nativeLanguage", "en")
-        target_lang = listener.get("nativeLanguage", "en")
-
-        if source_lang == target_lang:
-            return  # No translation needed
-
-        # Start pipeline for this speaker's audio
-        audio_stream = rtc.AudioStream(track)
-        task = asyncio.create_task(
-            _participant_pipeline(
-                audio_stream, room, speaker_id, source_lang, target_lang, stop_event
-            )
-        )
-        pipeline_tasks[speaker_id] = task
+        elif sig == Signal.RECORDING_STOP:
+            recording_active.clear()
+            logger.info("Recording stopped for %s", payload.get("userId"))
 
     @room.on("participant_disconnected")
-    def on_participant_disconnected(participant: rtc.RemoteParticipant):
-        task = pipeline_tasks.pop(participant.identity, None)
-        if task:
-            task.cancel()
+    def on_participant_disconnected(participant):
+        nonlocal recording_speaker_id
+        if participant.identity == recording_speaker_id:
+            recording_active.clear()
+            recording_speaker_id = None
 
     try:
         await room.connect(livekit_url, agent_token)
         logger.info("Translation agent joined room %s", room_name)
 
-        # Stay alive until all participants leave or stop event
         while not stop_event.is_set():
-            if len(room.remote_participants) == 0 and room.connection_state == rtc.ConnectionState.CONN_CONNECTED:
-                # Wait a bit for participants to join
-                await asyncio.sleep(5)
+            try:
+                await asyncio.wait_for(recording_active.wait(), timeout=1.0)
+            except asyncio.TimeoutError:
                 if len(room.remote_participants) == 0:
-                    break
-            await asyncio.sleep(1)
+                    await asyncio.sleep(5)
+                    if len(room.remote_participants) == 0:
+                        break
+                continue
+
+            speaker_id = recording_speaker_id
+            if not speaker_id or not audio_stream:
+                recording_active.clear()
+                continue
+
+            try:
+                await _run_walkie_talkie_turn(
+                    room, audio_stream, speaker_id, members,
+                    recording_active, _publish_signal, stop_event,
+                )
+            except Exception:
+                logger.exception("Walkie-talkie turn failed for %s", speaker_id)
+                try:
+                    await _publish_signal(Signal.ERROR, message="Translation failed")
+                except Exception:
+                    pass
+
+            recording_speaker_id = None
+            audio_stream = None
+
     finally:
         stop_event.set()
-        for task in pipeline_tasks.values():
-            task.cancel()
         await room.disconnect()
         logger.info("Translation agent left room %s", room_name)
 
 
-async def _participant_pipeline(
-    audio_stream: rtc.AudioStream,
+async def _run_walkie_talkie_turn(
     room: rtc.Room,
+    audio_stream: rtc.AudioStream,
     speaker_id: str,
-    source_lang: str,
-    target_lang: str,
+    members: dict[str, dict],
+    recording_active: asyncio.Event,
+    publish_signal,
     stop_event: asyncio.Event,
 ):
-    """Run STT -> translate -> TTS for one participant's audio."""
+    """Execute one walkie-talkie turn: collect audio -> STT -> translate -> TTS."""
+    speaker = members[speaker_id]
+    listener_id = next((uid for uid in members if uid != speaker_id), None)
+    if not listener_id:
+        return
+    listener = members[listener_id]
+
+    source_lang = speaker.get("nativeLanguage", "en")
+    target_lang = listener.get("nativeLanguage", "en")
+
+    if source_lang == target_lang:
+        await publish_signal(Signal.TTS_COMPLETE)
+        return
+
     stt_url = "wss://api.elevenlabs.io/v1/speech-to-text/realtime?model_id=scribe_v2_realtime"
     headers = {"xi-api-key": settings.elevenlabs_api_key}
 
-    try:
-        async with websockets.connect(stt_url, additional_headers=headers) as stt_ws:
-            async def send_audio():
-                async for event in audio_stream:
-                    if stop_event.is_set():
-                        break
-                    if isinstance(event, rtc.AudioFrameEvent):
-                        pcm_data = event.frame.data.tobytes()
-                        audio_b64 = base64.b64encode(pcm_data).decode("utf-8")
-                        await stt_ws.send(json.dumps({
-                            "message_type": "input_audio_chunk",
-                            "audio_base_64": audio_b64,
-                            "commit": False,
-                            "sample_rate": event.frame.sample_rate,
-                        }))
+    transcript_parts: list[str] = []
 
-                # Send final commit
-                try:
+    async with websockets.connect(stt_url, additional_headers=headers) as stt_ws:
+        async def send_audio():
+            async for event in audio_stream:
+                if not recording_active.is_set() or stop_event.is_set():
+                    break
+                if isinstance(event, rtc.AudioFrameEvent):
+                    pcm_data = event.frame.data.tobytes()
+                    audio_b64 = base64.b64encode(pcm_data).decode("utf-8")
                     await stt_ws.send(json.dumps({
                         "message_type": "input_audio_chunk",
-                        "audio_base_64": "",
-                        "commit": True,
-                        "sample_rate": 16000,
+                        "audio_base_64": audio_b64,
+                        "commit": False,
+                        "sample_rate": event.frame.sample_rate,
                     }))
-                except Exception:
-                    logger.debug("Could not send final STT commit")
 
-            async def receive_and_synthesize():
-                async for message in stt_ws:
-                    if stop_event.is_set():
-                        break
-                    data = json.loads(message)
-                    msg_type = data.get("message_type")
+            try:
+                await stt_ws.send(json.dumps({
+                    "message_type": "input_audio_chunk",
+                    "audio_base_64": "",
+                    "commit": True,
+                    "sample_rate": 16000,
+                }))
+            except Exception:
+                logger.debug("Could not send final STT commit")
 
-                    if msg_type == "committed_transcript":
-                        text = data.get("text", "").strip()
-                        if not text:
-                            continue
+        async def receive_transcripts():
+            async for message in stt_ws:
+                data = json.loads(message)
+                msg_type = data.get("message_type")
+                if msg_type == "committed_transcript":
+                    text = data.get("text", "").strip()
+                    if text:
+                        transcript_parts.append(text)
+                elif msg_type == "input_error":
+                    logger.warning("STT error for %s: %s", speaker_id, data.get("message"))
 
-                        # Translate in a thread to avoid blocking the event loop
-                        loop = asyncio.get_event_loop()
-                        translated = await loop.run_in_executor(
-                            None, translate_text, text, source_lang, target_lang
-                        )
+        sender = asyncio.create_task(send_audio())
+        receiver = asyncio.create_task(receive_transcripts())
 
-                        # Synthesize and publish to room
-                        await _tts_and_publish(translated, room, speaker_id)
+        await sender
+        try:
+            await asyncio.wait_for(receiver, timeout=5.0)
+        except asyncio.TimeoutError:
+            receiver.cancel()
 
-                    elif msg_type == "input_error":
-                        logger.warning("STT error for %s: %s", speaker_id, data.get("message"))
+    full_transcript = " ".join(transcript_parts)
+    if not full_transcript:
+        await publish_signal(Signal.TTS_COMPLETE)
+        return
 
-            sender = asyncio.create_task(send_audio())
-            receiver = asyncio.create_task(receive_and_synthesize())
+    await publish_signal(Signal.PROCESSING)
 
-            done, pending = await asyncio.wait(
-                [sender, receiver], return_when=asyncio.FIRST_COMPLETED
-            )
-            for task in pending:
-                task.cancel()
-            for task in done:
-                if task.exception():
-                    logger.error("Pipeline task error for %s: %s", speaker_id, task.exception())
+    loop = asyncio.get_event_loop()
+    translated = await loop.run_in_executor(
+        None, translate_text, full_transcript, source_lang, target_lang
+    )
 
-    except websockets.exceptions.ConnectionClosed:
-        logger.warning("STT WebSocket closed for speaker %s", speaker_id)
-    except asyncio.CancelledError:
-        pass
-    except Exception:
-        logger.exception("Pipeline error for speaker %s", speaker_id)
+    await publish_signal(
+        Signal.TTS_PLAYING,
+        original_text=full_transcript,
+        translated_text=translated,
+    )
+    await _tts_and_publish(translated, room, speaker_id)
+
+    await publish_signal(Signal.TTS_COMPLETE)
 
 
 async def _tts_and_publish(text: str, room: rtc.Room, speaker_id: str):
