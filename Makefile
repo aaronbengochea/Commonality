@@ -44,9 +44,9 @@ lint:
 up:
 	docker compose up -d
 
-# Start all services with a full no-cache rebuild
+# Build images from scratch (no cache)
 build:
-	docker compose up -d --build --no-cache
+	docker compose build --no-cache
 
 # Stop all services
 down:

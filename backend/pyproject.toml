@@ -11,6 +11,7 @@ dependencies = [
     "pyjwt>=2.9.0",
     "argon2-cffi>=23.1.0",
     "openai>=1.55.0",
+    "livekit>=1.0.0",
     "livekit-api>=0.7.0",
     "websockets>=13.1",
     "pydantic-settings>=2.6.0",
