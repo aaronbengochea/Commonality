@@ -1,9 +1,13 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+
+# Configure root logger so app.* loggers emit INFO and above
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s: %(message)s")
 from app.db.dynamo import create_tables
 from app.dependencies import close_redis, get_redis_client
 from app.auth.router import router as auth_router
