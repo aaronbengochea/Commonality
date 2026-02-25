@@ -129,17 +129,18 @@ function WalkieTalkieControls({
       </button>
 
       {/* Only play audio from the translation-agent (TTS tracks), not raw user audio */}
-      <AgentAudioRenderer />
+      <AgentAudioRenderer userId={userId} />
     </div>
   );
 }
 
 /**
- * Custom audio renderer that only plays tracks from the "translation-agent"
- * participant. This prevents raw mic audio from being played to other users —
- * only the processed TTS translations are heard.
+ * Custom audio renderer that only plays TTS tracks from the "translation-agent"
+ * participant, and only for the listener (not the speaker who initiated the turn).
+ * Track names follow the pattern "translated-{speakerId}", so we skip tracks
+ * where the speakerId matches the current user.
  */
-function AgentAudioRenderer() {
+function AgentAudioRenderer({ userId }: { userId: string }) {
   const room = useRoomContext();
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
 
@@ -155,6 +156,14 @@ function AgentAudioRenderer() {
       if (participant.identity !== "translation-agent") return;
       if (track.kind !== Track.Kind.Audio) return;
 
+      // Skip playback if this translation was triggered by the current user
+      const trackName: string = publication.trackName || "";
+      if (trackName === `translated-${userId}`) {
+        console.log(`[walkie] Skipping TTS playback for own speech (track=${trackName})`);
+        return;
+      }
+
+      console.log(`[walkie] Playing TTS track: ${trackName}`);
       const audioEl = track.attach();
       audioEl.autoplay = true;
       audioElementsRef.current.set(publication.trackSid, audioEl);

@@ -84,6 +84,7 @@ export function useWalkieTalkie(room: Room | undefined, userId: string) {
       const decoder = new TextDecoder();
       const data = JSON.parse(decoder.decode(payload));
       const signal = data.signal as string;
+      console.log(`[walkie] << RECEIVED signal: ${signal}`, data);
 
       switch (signal) {
         case "RECORDING_START":
@@ -126,6 +127,7 @@ export function useWalkieTalkie(room: Room | undefined, userId: string) {
       if (!room) return;
       const encoder = new TextEncoder();
       const data = encoder.encode(JSON.stringify({ signal, ...payload }));
+      console.log(`[walkie] >> SENDING signal: ${signal}`, payload);
       await room.localParticipant.publishData(data, { reliable: true, topic: TOPIC });
     },
     [room],
@@ -133,7 +135,9 @@ export function useWalkieTalkie(room: Room | undefined, userId: string) {
 
   const startRecording = useCallback(async () => {
     if (store.state !== "idle" || !room) return;
+    console.log("[walkie] Enabling microphone...");
     await room.localParticipant.setMicrophoneEnabled(true);
+    console.log("[walkie] Microphone enabled, sending RECORDING_START");
     await sendSignal("RECORDING_START", { userId });
     dispatch({ type: "RECORDING_START", userId });
     timeoutRef.current = setTimeout(() => { stopRecording(); }, 30000);
@@ -142,10 +146,12 @@ export function useWalkieTalkie(room: Room | undefined, userId: string) {
   const stopRecording = useCallback(async () => {
     if (store.state !== "recording" || !room) return;
     if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+    console.log("[walkie] Disabling microphone, sending RECORDING_STOP");
     await room.localParticipant.setMicrophoneEnabled(false);
     await sendSignal("RECORDING_STOP", { userId });
     dispatch({ type: "RECORDING_STOP" });
     timeoutRef.current = setTimeout(() => {
+      console.warn("[walkie] Translation timed out (30s)");
       dispatch({ type: "ERROR", message: "Translation timed out" });
     }, 30000);
   }, [store.state, room, userId, sendSignal]);
