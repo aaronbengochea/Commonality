@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <em>Break the language barrier — chat and call in your native language while everyone hears theirs.<br/>Making it common to understand each other.</em>
+  <em>Break the language barrier — instant chat and live calls in your native language while everyone reads and hears theirs. Making it common to understand each other.</em>
 </p>
 
 ---
