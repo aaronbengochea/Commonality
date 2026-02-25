@@ -2,20 +2,26 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { api } from "@/lib/api";
-import { Message } from "@/types";
+import { Message, Chat } from "@/types";
 import ChatMessage from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
+import Navbar from "@/components/Navbar";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Phone } from "lucide-react";
 
 export default function ChatConversationPage() {
   const { chatId } = useParams<{ chatId: string }>();
-  const { user, loading } = useAuth("/");
+  const { user, loading, logout } = useAuth("/");
   const [messages, setMessages] = useState<Message[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
+  const [otherName, setOtherName] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Handle incoming WebSocket messages
@@ -42,7 +48,21 @@ export default function ChatConversationPage() {
 
   const { send } = useWebSocket(handleWsMessage);
 
-  // Load message history — re-runs when chatId changes
+  // Fetch other user's name from chat list
+  useEffect(() => {
+    if (!user || !chatId) return;
+    api
+      .get("/api/chats")
+      .then((data) => {
+        const chat = data.find(
+          (c: Record<string, string>) => c.chat_id === chatId
+        );
+        if (chat) setOtherName(chat.other_username);
+      })
+      .catch(() => {});
+  }, [user, chatId]);
+
+  // Load message history
   useEffect(() => {
     if (!user || !chatId) return;
 
@@ -62,7 +82,6 @@ export default function ChatConversationPage() {
             timestamp: m.timestamp,
           })
         );
-        // API returns newest-first, reverse for display
         setMessages(msgs.reverse());
         setNextCursor(data.next_cursor);
       })
@@ -105,32 +124,53 @@ export default function ChatConversationPage() {
     send(JSON.stringify({ chat_id: chatId, text }));
   }
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
   if (!user) return null;
 
   return (
-    <main className="flex h-screen flex-col">
-      <header className="flex items-center justify-between border-b p-4">
-        <a href="/chat" className="text-blue-600 hover:underline">
-          &larr; Back
-        </a>
-        <h1 className="text-lg font-semibold">Chat</h1>
-        <a
-          href={`/voice/${chatId}`}
-          className="rounded-lg bg-green-600 px-3 py-1.5 text-sm text-white hover:bg-green-700"
+    <div className="flex h-screen flex-col">
+      <Navbar
+        username={user.username}
+        firstName={user.firstName}
+        onLogout={logout}
+      />
+
+      {/* Chat sub-header */}
+      <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
+        <Link
+          href="/chat"
+          className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
-          Call
-        </a>
-      </header>
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Link>
+        <h2 className="font-semibold">
+          {otherName || "Chat"}
+        </h2>
+        <Link href={`/voice/${chatId}`}>
+          <Button variant="outline" size="sm">
+            <Phone className="mr-1.5 h-4 w-4" />
+            Call
+          </Button>
+        </Link>
+      </div>
+
+      {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-4">
         {error && (
-          <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
+          <Alert variant="destructive" className="mb-4">{error}</Alert>
         )}
         {nextCursor && (
           <button
             onClick={loadMore}
             disabled={loadingMore}
-            className="mb-4 w-full text-center text-sm text-blue-600 hover:underline disabled:opacity-50"
+            className="mb-4 w-full text-center text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
           >
             {loadingMore ? "Loading..." : "Load older messages"}
           </button>
@@ -144,9 +184,11 @@ export default function ChatConversationPage() {
         ))}
         <div ref={bottomRef} />
       </div>
-      <div className="border-t p-4">
+
+      {/* Input area */}
+      <div className="border-t border-white/5 p-4">
         <ChatInput onSend={handleSend} />
       </div>
-    </main>
+    </div>
   );
 }

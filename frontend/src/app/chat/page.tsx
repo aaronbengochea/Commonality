@@ -6,9 +6,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { Chat } from "@/types";
 import ChatList from "@/components/ChatList";
+import Navbar from "@/components/Navbar";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
+import { Plus, X } from "lucide-react";
 
 export default function ChatListPage() {
-  const { user, loading } = useAuth("/");
+  const { user, loading, logout } = useAuth("/");
   const router = useRouter();
   const [chats, setChats] = useState<Chat[]>([]);
   const [showNewChat, setShowNewChat] = useState(false);
@@ -50,49 +56,71 @@ export default function ChatListPage() {
     }
   }
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
   if (!user) return null;
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Chats</h1>
-        <button
-          onClick={() => setShowNewChat(!showNewChat)}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
-        >
-          New Chat
-        </button>
-      </div>
+    <div className="flex min-h-screen flex-col">
+      <Navbar
+        username={user.username}
+        firstName={user.firstName}
+        onLogout={logout}
+      />
 
-      {showNewChat && (
-        <form onSubmit={handleNewChat} className="mt-4 space-y-2">
-          {error && (
-            <div className="rounded-lg bg-red-50 p-2 text-sm text-red-600">{error}</div>
-          )}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Enter username..."
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-            />
-            <button
-              type="submit"
-              disabled={creating}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {creating ? "Creating..." : "Start"}
-            </button>
-          </div>
-        </form>
-      )}
+      <main className="mx-auto w-full max-w-2xl flex-1 p-4">
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Chats</h1>
+          <Button
+            onClick={() => setShowNewChat(!showNewChat)}
+            size="sm"
+          >
+            {showNewChat ? (
+              <X className="mr-1.5 h-4 w-4" />
+            ) : (
+              <Plus className="mr-1.5 h-4 w-4" />
+            )}
+            {showNewChat ? "Cancel" : "New Chat"}
+          </Button>
+        </div>
 
-      <div className="mt-4">
-        <ChatList chats={chats} />
-      </div>
-    </main>
+        {showNewChat && (
+          <Card className="mb-4">
+            <form onSubmit={handleNewChat} className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Start a conversation with another user
+              </p>
+              {error && <Alert variant="destructive">{error}</Alert>}
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder="Enter username..."
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  className="py-2"
+                />
+                <Button type="submit" disabled={creating} size="sm" className="px-6">
+                  {creating ? "Creating..." : "Start"}
+                </Button>
+              </div>
+            </form>
+          </Card>
+        )}
+
+        {!showNewChat && error && (
+          <Alert variant="destructive" className="mb-4">{error}</Alert>
+        )}
+
+        <Card className="p-0 overflow-hidden">
+          <ChatList chats={chats} />
+        </Card>
+      </main>
+    </div>
   );
 }

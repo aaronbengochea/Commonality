@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Send } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   onSend: (text: string) => void;
@@ -18,19 +21,16 @@ export default function ChatInput({ onSend }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="flex gap-2">
-      <input
+      <Input
         type="text"
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Type a message..."
-        className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
+        className="py-2"
       />
-      <button
-        type="submit"
-        className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
-      >
-        Send
-      </button>
+      <Button type="submit" size="icon" className="shrink-0">
+        <Send className="h-4 w-4" />
+      </Button>
     </form>
   );
 }
