@@ -35,11 +35,11 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-md space-y-6">
+      <Card className="w-full max-w-md space-y-4 px-4 pb-4 pt-1">
         <div className="flex flex-col items-center">
           <Logo size={200} variant="default" />
-          <p className="mt-2 text-muted-foreground">
-            Chat and call in any language
+          <p className="mt-8 bg-gradient-to-r from-indigo-400 to-pink-500 bg-clip-text pb-1 text-lg font-semibold text-transparent">
+            Break the Language Barrier
           </p>
         </div>
 

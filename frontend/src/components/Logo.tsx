@@ -9,7 +9,7 @@ export function Logo({ size = 200, showText = true, variant = 'default' }: LogoP
   const fontSize = size * 0.12;
 
   return (
-    <div className="flex items-center gap-4" style={{ height: size }}>
+    <div className="flex items-center gap-4">
       {/* Icon: Overlapping speech bubbles forming a connection */}
       <svg
         width={iconSize}
@@ -101,7 +101,7 @@ export function Logo({ size = 200, showText = true, variant = 'default' }: LogoP
               backgroundClip: 'text',
             }}
           >
-            commonality
+            Commonality
           </div>
           <div
             className="tracking-wider uppercase opacity-60"
