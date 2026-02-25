@@ -27,15 +27,16 @@ Real-time translation chat and voice app. Communicate in your native language â€
 ### Prerequisites
 
 - Docker and Docker Compose
+- Python 3.12, Node.js (for local development without Docker)
 - API keys for OpenAI, ElevenLabs (optional for text-only dev)
 
-### Setup
+### Quick Start
 
 ```bash
-cp .env.example .env
-# Fill in your API keys in .env
-
-docker compose up --build
+make setup     # Create .env from .env.example (fill in your API keys)
+make install   # Install backend + frontend dependencies locally
+make build     # Build Docker images
+make up        # Start all services
 ```
 
 - **Frontend:** http://localhost:3000
@@ -45,12 +46,26 @@ docker compose up --build
 ### Makefile Commands
 
 ```bash
-make up        # Start all services
-make down      # Stop all services
-make build     # Rebuild images (no cache)
-make logs      # Tail all service logs
-make test      # Run backend tests
-make lint      # Run linters
+# Setup
+make setup           # Create .env file from template
+make install         # Install all dependencies (backend + frontend)
+make install-backend # Install backend Python deps into venv
+make install-frontend# Install frontend npm deps
+
+# Docker
+make up              # Start all services
+make down            # Stop all services
+make build           # Rebuild images (no cache)
+make restart         # Restart all services
+make clean           # Stop services and remove volumes
+
+# Development
+make test            # Run backend tests
+make lint            # Run frontend linter
+make logs            # Tail all service logs
+make logs-backend    # Tail logs for a specific service
+make shell-backend   # Open shell in backend container
+make shell-frontend  # Open shell in frontend container
 ```
 
 ## Project Structure
