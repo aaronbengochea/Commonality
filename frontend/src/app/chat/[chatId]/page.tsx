@@ -16,7 +16,7 @@ import { ArrowLeft, Phone } from "lucide-react";
 
 export default function ChatConversationPage() {
   const { chatId } = useParams<{ chatId: string }>();
-  const { user, loading, logout } = useAuth("/");
+  const { user, loading, logout } = useAuth("/login");
   const [messages, setMessages] = useState<Message[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);

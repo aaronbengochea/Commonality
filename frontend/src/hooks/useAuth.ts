@@ -39,7 +39,7 @@ export function useAuth(redirectTo?: string) {
   function logout() {
     localStorage.removeItem("token");
     setUser(null);
-    router.push("/");
+    router.push("/login");
   }
 
   return { user, loading, setUser, logout };

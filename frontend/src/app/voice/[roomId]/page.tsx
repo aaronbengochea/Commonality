@@ -14,7 +14,7 @@ const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || "ws://localhost:7880"
 
 export default function VoiceRoomPage() {
   const { roomId } = useParams<{ roomId: string }>();
-  const { user, loading } = useAuth("/");
+  const { user, loading } = useAuth("/login");
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState("");

@@ -56,7 +56,7 @@ make up        # Start all services
 make setup           # Create .env file from template
 make install         # Install all dependencies (backend + frontend)
 make install-backend # Install backend Python deps into venv
-make install-frontend# Install frontend npm deps
+make install-frontend # Install frontend npm deps
 
 # Docker
 make up              # Start all services

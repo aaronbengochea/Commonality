@@ -14,7 +14,7 @@ import { Alert } from "@/components/ui/alert";
 import { Plus, X } from "lucide-react";
 
 export default function ChatListPage() {
-  const { user, loading, logout } = useAuth("/");
+  const { user, loading, logout } = useAuth("/login");
   const router = useRouter();
   const [chats, setChats] = useState<Chat[]>([]);
   const [showNewChat, setShowNewChat] = useState(false);
