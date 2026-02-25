@@ -18,6 +18,8 @@ class Settings(BaseSettings):
 
     # ElevenLabs
     elevenlabs_api_key: str = ""
+    elevenlabs_tts_voice_id: str = "Xb7hH8MSUJpSbSDYk0k2"
+    elevenlabs_tts_model: str = "eleven_flash_v2_5"
 
     # DynamoDB
     dynamodb_endpoint: str = "http://dynamodb-local:8000"
