@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { api } from "@/lib/api";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 
 const PASSWORD_MIN_LENGTH = Number(process.env.NEXT_PUBLIC_PASSWORD_MIN_LENGTH) || 8;
 
@@ -45,19 +51,21 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center">
-      <div className="w-full max-w-md space-y-8 p-8">
+    <main className="flex min-h-screen items-center justify-center px-4">
+      <Card className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <h1 className="text-4xl font-bold">Sign Up</h1>
-          <p className="mt-2 text-gray-600">Create your Commonality account</p>
+          <h1 className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-4xl font-bold text-transparent">
+            Sign Up
+          </h1>
+          <p className="mt-2 text-muted-foreground">
+            Create your Commonality account
+          </p>
         </div>
-        {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
-            {error}
-          </div>
-        )}
-        <form onSubmit={handleSignup} className="mt-8 space-y-4">
-          <input
+
+        {error && <Alert variant="destructive">{error}</Alert>}
+
+        <form onSubmit={handleSignup} className="space-y-4">
+          <Input
             type="text"
             placeholder="Username"
             value={form.username}
@@ -65,40 +73,35 @@ export default function SignupPage() {
             required
             minLength={3}
             maxLength={50}
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-500 focus:outline-none"
           />
-          <input
+          <Input
             type="password"
             placeholder={`Password (min ${PASSWORD_MIN_LENGTH} characters)`}
             value={form.password}
             onChange={(e) => update("password", e.target.value)}
             required
             minLength={PASSWORD_MIN_LENGTH}
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-500 focus:outline-none"
           />
           <div className="grid grid-cols-2 gap-4">
-            <input
+            <Input
               type="text"
               placeholder="First name"
               value={form.firstName}
               onChange={(e) => update("firstName", e.target.value)}
               required
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-500 focus:outline-none"
             />
-            <input
+            <Input
               type="text"
               placeholder="Last name"
               value={form.lastName}
               onChange={(e) => update("lastName", e.target.value)}
               required
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-500 focus:outline-none"
             />
           </div>
-          <select
+          <Select
             value={form.nativeLanguage}
             onChange={(e) => update("nativeLanguage", e.target.value)}
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-500 focus:outline-none"
           >
             <option value="">Select your language</option>
             <option value="en">English</option>
@@ -111,22 +114,19 @@ export default function SignupPage() {
             <option value="ko">Korean</option>
             <option value="ar">Arabic</option>
             <option value="hi">Hindi</option>
-          </select>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-blue-600 px-4 py-3 text-white hover:bg-blue-700 disabled:opacity-50"
-          >
+          </Select>
+          <Button type="submit" disabled={loading} className="w-full py-3">
             {loading ? "Creating account..." : "Create Account"}
-          </button>
+          </Button>
         </form>
-        <p className="text-center text-gray-600">
+
+        <p className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <a href="/" className="text-blue-600 hover:underline">
+          <Link href="/" className="text-primary hover:underline">
             Log in
-          </a>
+          </Link>
         </p>
-      </div>
+      </Card>
     </main>
   );
 }

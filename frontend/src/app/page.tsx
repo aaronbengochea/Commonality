@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { api } from "@/lib/api";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 
 export default function Home() {
   const router = useRouter();
@@ -28,51 +33,46 @@ export default function Home() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center">
-      <div className="w-full max-w-md space-y-8 p-8">
+    <main className="flex min-h-screen items-center justify-center px-4">
+      <Card className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <h1 className="text-4xl font-bold">Commonality</h1>
-          <p className="mt-2 text-gray-600">
+          <h1 className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-4xl font-bold text-transparent">
+            Commonality
+          </h1>
+          <p className="mt-2 text-muted-foreground">
             Chat and call in any language
           </p>
         </div>
-        {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
-            {error}
-          </div>
-        )}
-        <form onSubmit={handleLogin} className="mt-8 space-y-4">
-          <input
+
+        {error && <Alert variant="destructive">{error}</Alert>}
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <Input
             type="text"
             placeholder="Username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-500 focus:outline-none"
           />
-          <input
+          <Input
             type="password"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-500 focus:outline-none"
           />
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-blue-600 px-4 py-3 text-white hover:bg-blue-700 disabled:opacity-50"
-          >
+          <Button type="submit" disabled={loading} className="w-full py-3">
             {loading ? "Logging in..." : "Log in"}
-          </button>
+          </Button>
         </form>
-        <p className="text-center text-gray-600">
+
+        <p className="text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
-          <a href="/signup" className="text-blue-600 hover:underline">
+          <Link href="/signup" className="text-primary hover:underline">
             Sign up
-          </a>
+          </Link>
         </p>
-      </div>
+      </Card>
     </main>
   );
 }
