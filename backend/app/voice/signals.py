@@ -44,7 +44,7 @@ def encode_signal(signal: Signal, **kwargs: Any) -> str:
 
 
 def decode_signal(raw: str) -> tuple[Signal | None, dict[str, Any]]:
-    """Decode a JSON signal string. Returns (Signal, payload_dict) or (None, {}) if unknown."""
+    """Decode a JSON signal string. Returns (Signal, payload_dict) or (None, payload_dict) if unknown."""
     data = json.loads(raw)
     signal_str = data.get("signal")
     signal = _SIGNAL_LOOKUP.get(signal_str)
