@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <em>Break the language barrier — instant chat and live calls in your native language while everyone reads and hears theirs. Making it common to understand each other.</em>
+  <em>Break the Language Barrier — Instant text chat and live calls in your native language while everyone reads and hears theirs. Making it common to understand each other.</em>
 </p>
 
 ---
@@ -11,7 +11,7 @@
 ## Features
 
 - **Text chat** with automatic translation between any supported language pair
-- **Voice calls** with real-time speech-to-text, translation, and text-to-speech
+- **Walkie-talkie voice** — push-to-talk with real-time STT, translation, and TTS playback
 - **1:1 conversations** — each user's message history is stored natively in their language
 
 ## Tech Stack
@@ -34,7 +34,7 @@
 
 - Docker and Docker Compose
 - Python 3.12, Node.js (for local development without Docker)
-- API keys for OpenAI, ElevenLabs (optional for text-only dev)
+- API keys for OpenAI, ElevenLabs, and a LiveKit Cloud project
 
 ### Quick Start
 
@@ -72,6 +72,11 @@ make logs            # Tail all service logs
 make logs-backend    # Tail logs for a specific service
 make shell-backend   # Open shell in backend container
 make shell-frontend  # Open shell in frontend container
+
+# ngrok Tunneling (cross-device testing)
+make tunnel          # Start ngrok tunnel
+make tunnel-env      # Update .env with ngrok tunnel URL
+make tunnel-restart  # Update .env and restart services
 ```
 
 ## Project Structure
@@ -85,7 +90,7 @@ commonality/
 │   │   ├── dependencies.py   # DynamoDB + Redis clients
 │   │   ├── auth/             # Signup, login, JWT
 │   │   ├── chat/             # REST + WebSocket chat
-│   │   ├── voice/            # LiveKit tokens + STT/TTS pipeline
+│   │   ├── voice/            # LiveKit token gen + walkie-talkie agent pipeline
 │   │   └── db/               # DynamoDB table setup
 │   ├── tests/
 │   ├── Dockerfile
@@ -93,13 +98,15 @@ commonality/
 ├── frontend/
 │   ├── src/
 │   │   ├── app/              # Next.js App Router pages
-│   │   ├── components/       # React components
-│   │   ├── hooks/            # Custom hooks (auth, WebSocket)
+│   │   ├── components/       # React components (VoiceRoom, WaveformVisualizer, …)
+│   │   ├── hooks/            # Custom hooks (useAuth, useWalkieTalkie, useWebSocket)
 │   │   ├── lib/              # API client, WebSocket manager
 │   │   └── types/            # TypeScript types
 │   ├── Dockerfile
 │   └── package.json
-├── docker-compose.yml        # 5 services: backend, frontend, dynamodb, redis, livekit
+├── nginx/                    # Reverse proxy config (single ngrok tunnel → both services)
+├── scripts/                  # ngrok tunnel helper scripts
+├── docker-compose.yml
 ├── Makefile
 └── .env.example
 ```
@@ -114,13 +121,13 @@ commonality/
 4. Backend stores the translated message for User B
 5. User B receives the translated message in real time
 
-### Voice Calls
+### Voice (Walkie-Talkie)
 
-1. Users join a LiveKit room
-2. Audio is streamed to ElevenLabs STT for transcription
-3. Committed transcript segments are translated via OpenAI
-4. Translated text is sent to ElevenLabs TTS
-5. Synthesized audio is played to the other participant
+1. User A presses "Tap to Speak" — microphone enabled, audio streamed to LiveKit
+2. A server-side translation agent captures the audio and pipes it to ElevenLabs STT
+3. User A presses "Tap to Stop" — the committed transcript is translated via OpenAI
+4. Translated text is synthesized to speech via ElevenLabs TTS
+5. TTS audio is published back to the LiveKit room — only User B hears the translation
 
 ## Deployment
 
